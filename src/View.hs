@@ -6,7 +6,13 @@ import Graphics.Gloss
 import Model
 
 view :: GameState -> IO Picture
-view = return . viewPure
+view = return . circ
+
+squares :: GameState -> Picture
+squares g = color green (Polygon [(0, 0), (10, 0), (10, 10), (0, 10)])
+
+circ :: GameState -> Picture
+circ gstate = color green (Circle 5)
 
 viewPure :: GameState -> Picture
 viewPure gstate = case infoToShow gstate of

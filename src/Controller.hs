@@ -15,7 +15,7 @@ step secs gstate
   = -- We show a new random number
     do randomNumber <- randomIO
        let newNumber = abs randomNumber `mod` 10
-       return $ GameState (ShowANumber newNumber) 0
+       return $ GameState (ShowANumber newNumber) (P (Pt 0 0) Peashooter 5 3) 0
   | otherwise
   = -- Just update the elapsed time
     return $ gstate { elapsedTime = elapsedTime gstate + secs }
@@ -24,8 +24,16 @@ step secs gstate
 input :: Event -> GameState -> IO GameState
 input e gstate = return (inputKey e gstate)
 
+
 inputKey :: Event -> GameState -> GameState
-inputKey (EventKey (Char c) _ _ _) gstate
+inputKey (EventKey (Char w) _ _ _) gstate
   = -- If the user presses a character key, show that one
-    gstate { infoToShow = ShowAChar c }
+    gstate { infoToShow = ShowAChar w, (P (Pt x y) _ _ _) = (P (Pt 10 0) _ _ _) }
+
 inputKey _ gstate = gstate -- Otherwise keep the same
+
+-- inputKey :: Event -> GameState -> GameState
+-- inputKey (EventKey (Char c) _ _ _) gstate
+--   = -- If the user presses a character key, show that one
+--     gstate { infoToShow = ShowAChar c }
+-- inputKey _ gstate = gstate -- Otherwise keep the same
