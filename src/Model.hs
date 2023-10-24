@@ -7,28 +7,38 @@ data InfoToShow = ShowNothing
                 | ShowAChar   Char
 
 
-nO_SECS_BETWEEN_CYCLES :: Float
-nO_SECS_BETWEEN_CYCLES = 5
-
 data GameState = GameState {
                    infoToShow  :: InfoToShow,
                    player :: Player,
+                  --  enemies :: [Enemy], -- ik weet niet of dit de beste manier is om alle enemies te representeren, misschien aparte lijsten per enemy
+                   enemies :: [Swarm],
+                   score :: Score,
                    elapsedTime :: Float
                  }
 
 initialState :: GameState
-initialState = GameState ShowNothing (P (Pt 0 0) Peashooter 5 3) 0
+initialState = GameState ShowNothing (P (Pt 0 0) Peashooter 5 3 []) [Swarm 3 10 (Pt 0 0)] 0 0
 
-data Player = P Position Weapon Velocity Lives
-
-data Weapon = Peashooter | Launcher | Laser
-
-type Position = Point
+data Player = P {
+                position :: Point,
+                weapon :: Weapon,
+                speed :: Speed,
+                health :: Health,
+                bullets :: [Bullet]
+                }
 
 data Point = Pt Float Float
-
-type Velocity = Float
-
-type Lives = Int
+data Weapon = Peashooter | Launcher | Laser
+type Bullet = Point
 
 type Score = Int
+type Health = Int
+type Speed = Int
+type Size = Float
+
+data Swarm = Swarm Health Size Point
+
+-- data Enemy = Swarm Health Size Point
+--             | Turret Point -- does not have lives since you cant hit them
+--             | Worm Point
+--             | Boss Point
