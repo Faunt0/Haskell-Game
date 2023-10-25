@@ -10,35 +10,64 @@ data InfoToShow = ShowNothing
 data GameState = GameState {
                    infoToShow  :: InfoToShow,
                    player :: Player,
-                  --  enemies :: [Enemy], -- ik weet niet of dit de beste manier is om alle enemies te representeren, misschien aparte lijsten per enemy
-                   enemies :: [Swarm],
+                   enemies :: [Enemy],
                    score :: Score,
                    elapsedTime :: Float
                  }
 
 initialState :: GameState
-initialState = GameState ShowNothing (P (Pt 0 0) Peashooter 5 3 []) [Swarm 3 10 (Pt 0 0)] 0 0
+initialState = GameState ShowNothing (P (Pt 0 0) Peashooter 5 3 []) [Swarm 3 (Pt 50 0) 20] 0 0
 
 data Player = P {
-                position :: Point,
+                position :: Pos,
                 weapon :: Weapon,
                 speed :: Speed,
                 health :: Health,
-                bullets :: [Bullet]
+                bullets :: [Bullet] -- change to also accept rockets etc
                 }
 
-data Point = Pt Float Float
 data Weapon = Peashooter | Launcher | Laser
-type Bullet = Point
+-- type Bullet = Pos
+
+instance Show Weapon where -- is dit nodig? ja voor het bepalen wat voor ammo er geschoten word toch
+    show Peashooter = "PeaShooter"
+    show Launcher = "Launcher"
+    show Laser = "Laser"
+
+data Bullet = Pea Pos 
+      | Rocket Pos 
+      | Laserbeam Pos
+
+instance Show Bullet where
+    show (Pea _) = "Pea"
+    show (Rocket _) = "Rocket"
+    show (Laserbeam _) = "Laserbeam"
 
 type Score = Int
 type Health = Int
 type Speed = Int
 type Size = Float
 
-data Swarm = Swarm Health Size Point
+-- data Swarm = Swarm Health Size Pos
 
--- data Enemy = Swarm Health Size Point
---             | Turret Point -- does not have lives since you cant hit them
---             | Worm Point
---             | Boss Point
+data Pos = Pt Float Float
+
+-- hebben enemies ook een speed?
+data Enemy = Swarm Health Pos Size
+            | Turret Pos Size -- does not have lives since you cant hit them
+            | Worm Health Pos Size
+            | Boss Health Pos Size
+
+instance Show Enemy where
+  show (Swarm {}) = "Swarm"
+  show (Turret {}) = "Turret"
+  show (Worm {}) = "Worm"
+  show (Boss {}) = "Boss"
+
+
+-- do i have to work with monads??
+-- data Ammo a = Ender Pos | Creeper a
+
+-- instance Monad Ammo where
+--   (Ender p) >>= f = Ender p 
+--   return = Just
