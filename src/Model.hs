@@ -2,9 +2,15 @@
 --   which represent the state of the game
 module Model where
 
+swarmFreq :: IO Int
+swarmFreq = return 1
+
+
+
 data InfoToShow = ShowNothing
                 | ShowANumber Int
                 | ShowAChar   Char
+                | ShowAString String
 
 
 data GameState = GameState {
@@ -50,14 +56,16 @@ type Size = Float
 
 -- data Swarm = Swarm Health Size Pos
 
-data Pos = Pt Float Float
+data Pos = Pt Float Float deriving (Eq)
 
 -- hebben enemies ook een speed?
 data Enemy = Swarm Health Pos Size
-            | Turret Pos Size -- does not have lives since you cant hit them
+            | Turret Health Pos Size -- does not have lives since you cant hit them
             | Worm Health Pos Size
             | Boss Health Pos Size
+            deriving (Eq)
 
+-- misschien niet nodig
 instance Show Enemy where
   show (Swarm {}) = "Swarm"
   show (Turret {}) = "Turret"

@@ -18,40 +18,61 @@ step :: Float -> GameState -> IO GameState
 step secs gstate = 
   do 
     -- let gstate = gstate {player = updatedPlayer} -- incase we want to make things more readable, this is also a way of jotting things down
-    randomNumber <- randomIO :: IO Int
+    -- spawn new enemies
+    random1 <- randomRIO (1, 5) :: IO Int
+    random2 <- randomRIO (1, 100) :: IO Float
+    let randomY = random2
+    let swarm = Swarm 3 (Pt 50 randomY) 3
+    let newEnemies = swarm
+
+
     -- let updatedEnemies = mapMaybe (hitBoxCheck (bullets (player gstate))) (enemies gstate) -- update enemy?
     -- return (gstate { elapsedTime = elapsedTime gstate + secs, player = updatedPlayer, enemies = updatedEnemies})
 
     -- check if any bullet hits an enemy and moves the bullet
-    let updatedBullets = mapMaybe (\bullet -> bulletHit bullet (enemies gstate)) (moveBullets bts)
-    let updatedEnemies = mapMaybe (killEnemy (moveBullets bts)) (map moveEnemy (enemies gstate))
+    let updatedBullets = mapMaybe (\bullet -> bulletHit bullet (enemies gstate)) (map moveBullet bts)
+    let updatedEnemies = mapMaybe (killEnemy (map moveBullet bts)) (map moveEnemy (enemies gstate))
     let updatedPlayer = (player gstate) {bullets = updatedBullets}
 
-    let updatedScore = undefined
+    let updatedScore = calculateScore updatedEnemies (enemies gstate)
 
-
-    return (gstate { elapsedTime = elapsedTime gstate + secs, player = updatedPlayer, enemies = updatedEnemies })
+    return (gstate { elapsedTime = elapsedTime gstate + secs, player = updatedPlayer, enemies = newEnemies : updatedEnemies, score = updatedScore })
   where
     (P p w v l bts) = player gstate
 
 
+-- spawnEnemy :: IO Int -> IO Float -> Maybe Enemy
+-- spawnEnemy r1 ry
+--   | r1 == swarmFreq = 
+
 -- update the score by checking which enemies have been killed, might run into trouble when deleting enemies after going off screen. 
 -- May need to do that deletion at the very end of the step, after calcing score.
+calculateScore :: [Enemy] -> [Enemy] -> Score
+calculateScore l1 l2 = calcScore (filter (`notElem` l1) l2)
 
+calcScore :: [Enemy] -> Score
+calcScore [] = 0
+calcScore (e:es) = 
+    points + calcScore es
+  where
+    points = case e of
+                Swarm {} -> 5
+                Turret {} -> 10
+                Worm {} -> 15
+                Boss {} -> 50
 
 -- define the movements of the bullets of the player
 moveBullet :: Bullet -> Bullet
 moveBullet (Pea (Pt x y)) = Pea (Pt (x + 5) y)
 moveBullet (Rocket (Pt x y)) = Rocket (Pt (x + 7) y)
-moveBullet (Laserbeam (Pt x y)) = Laserbeam (Pt (x + 15) y)
+moveBullet (Laserbeam (Pt x y)) = Laserbeam (Pt (x + 15) y) -- schiet elke frame een kogel
 
--- move each of the bullets of the player their preditermined amout to the right
-moveBullets :: [Bullet] -> [Bullet]
-moveBullets = map moveBullet
 
+
+-- define movement of the enemies
 moveEnemy :: Enemy -> Enemy
 moveEnemy (Swarm h (Pt x y) s) = Swarm h (Pt (x - 3) y) s
-moveEnemy (Turret (Pt x y) s) = Turret (Pt (x - 3) y) s
+moveEnemy (Turret h (Pt x y) s) = Turret h (Pt (x - 3) y) s
 moveEnemy (Worm h (Pt x y) s) = Worm h (Pt (x - 3) y) s
 moveEnemy (Boss h (Pt x y) s) = Boss h (Pt (x - 3) y) s
 
@@ -67,7 +88,7 @@ bulletHit bullet (enemy : enemies)
 
 enemyPos :: Enemy -> (Pos, Size)
 enemyPos (Swarm _ p s) = (p, s)
-enemyPos (Turret p s) = (p, s)
+enemyPos (Turret _ p s) = (p, s)
 enemyPos (Worm _ p s) = (p, s)
 enemyPos (Boss _ p s) = (p, s)
 
@@ -84,7 +105,7 @@ killEnemy (b:bts) enemy@(Swarm h s p2)
     dmg = case show b of
             "Pea" -> 1 -- is er een manier waarop ik dit kan global kan definieren? 
             "Rocket" -> 5
-            "Laserbeam"  -> 10
+            "Laserbeam"  -> 10 -- verlagen
 
 bulletPos :: Bullet -> Pos
 bulletPos (Pea p) = p
@@ -100,6 +121,8 @@ ptInSquare (Pt x y) (Pt xe ye) s = x <= xe + s && x >= xe && y <= ye + s && y >=
 -- | Handle user input
 input :: Event -> GameState -> IO GameState
 input e gstate = return (inputKey e gstate)
+
+-- update player
 
 inputKey :: Event -> GameState -> GameState
 inputKey (EventKey (Char c) _ _ _) gstate
@@ -118,9 +141,22 @@ inputKey (EventKey (SpecialKey KeySpace) Down _ _) gstate
       (P (Pt x y) we vel l b) = player gstate
       bullet = getBullet we (Pt x y)
 
+
+inputKey (EventKey (SpecialKey KeyTab) Down _ _) gstate
+  = gstate { infoToShow = ShowAString "SW", player = P (Pt x y) we vel l b } -- shoot
+    where
+      (P (Pt x y) we vel l b) = player gstate
+      bullet = getBullet we (Pt x y)
+
 inputKey _ gstate = gstate -- Otherwise keep the same
+
 
 getBullet :: Weapon -> Pos -> Bullet
 getBullet Peashooter = Pea
 getBullet Launcher = Rocket
 getBullet Laser = Laserbeam
+
+switchWeapon :: Weapon -> Weapon
+switchWeapon Peashooter = Launcher
+switchWeapon Launcher = Laser
+switchWeapon Laser = Peashooter
