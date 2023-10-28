@@ -1,20 +1,34 @@
 -- | This module contains the data types
 --   which represent the state of the game
 module Model where
+-- import qualified Data.Set as S (Set, insert, delete, empty)
+import qualified Data.Set as S hiding (map, filter)
 
-swarmFreq :: IO Int
-swarmFreq = return 1
+-- swarmFreq :: IO Int
+-- swarmFreq = return 1
 
-
+peashooterTimer :: Float
+peashooterTimer = 10
+launcherTimer :: Float
+launcherTimer = 2
+laserTimer :: Float
+laserTimer = 3
+-- maybe define a list of frequencies of the same length as the list of timers
 
 data InfoToShow = ShowNothing
                 | ShowANumber Int
                 | ShowAChar   Char
                 | ShowAString String
 
+data TimerFreq = T String Time Freq
+type Time = Float
+type Freq = Float
+type Damage = Int
 
 data GameState = GameState {
                    infoToShow  :: InfoToShow,
+                   keys :: S.Set Char,
+                   timer :: [TimerFreq], -- a list (does this need to be a set? or not with correct implementation) of timers to spawn the enemies at certain rates
                    player :: Player,
                    enemies :: [Enemy],
                    score :: Score,
@@ -22,7 +36,10 @@ data GameState = GameState {
                  }
 
 initialState :: GameState
-initialState = GameState ShowNothing (P (Pt 0 0) Peashooter 5 3 []) [Swarm 3 (Pt 50 0) 20] 0 0
+initialState = GameState ShowNothing S.empty timersFreqs (P (Pt 0 0) Peashooter 5 3 []) [Swarm 3 (Pt 50 0) 10] 0 0
+
+timersFreqs :: [TimerFreq]
+timersFreqs = [T "Swarm" 0 1, T "Worm" 0 10]
 
 data Player = P {
                 position :: Pos,
