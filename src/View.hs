@@ -15,12 +15,13 @@ circ gstate =
   Pictures ([
       Translate x y (color green (Circle 10)) -- Player
     , Translate 30 30 (viewPure gstate) -- info to show
-    , Translate 50 50 (viewScore gstate) -- 
-    ] ++ [Translate bx by (color blue (Circle 4)) | (Pt bx by) <- map Controller.bulletPos bts] 
+    , Translate 50 50 (viewScore gstate)] 
+    ++ [Translate bx by (color blue (Circle 5)) | Pea (Pt bx by) <- bts] 
+    ++ [Translate bx by (color yellow (Circle 10)) | Rocket (Pt bx by) <- bts] 
     ++ enemiesPics (enemies gstate)
     ) -- enemy)
   where
-    (P (Pt x y) _ _ _ bts) = player gstate
+    (P (Pt x y) _ _ _ _ bts) = player gstate
 
 
 enemiesPics :: [Enemy] -> [Picture]
@@ -34,7 +35,7 @@ enemiesPics (enemy:es) = enemiesPics es ++ case enemy of
 
 
 viewScore :: GameState -> Picture
-viewScore gstate = color green (text (show (score gstate)))
+viewScore gstate = color red (text (show (score gstate)))
 
 viewPure :: GameState -> Picture
 viewPure gstate = case infoToShow gstate of
@@ -42,3 +43,7 @@ viewPure gstate = case infoToShow gstate of
   ShowANumber n -> color green (text (show n))
   ShowAChar   c -> color green (text [c])
   ShowAString s -> color green (text s)
+
+
+
+-- background elements

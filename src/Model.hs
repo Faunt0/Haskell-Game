@@ -7,13 +7,22 @@ import qualified Data.Set as S hiding (map, filter)
 -- swarmFreq :: IO Int
 -- swarmFreq = return 1
 
-peashooterTimer :: Float
-peashooterTimer = 10
-launcherTimer :: Float
-launcherTimer = 2
-laserTimer :: Float
-laserTimer = 3
--- maybe define a list of frequencies of the same length as the list of timers
+peashooterRate :: Float
+peashooterRate = 10
+peashooterSpeed :: Float
+peashooterSpeed = 20
+launcherRate :: Float
+launcherRate = 2
+rocketSpeed :: Float
+rocketSpeed = 40
+
+-- laser implementeren word echt lastig
+laserRate :: Float
+laserRate = 3 -- dit is anders
+laserbeamSpeed :: Float
+laserbeamSpeed = 10 -- is dit nodig als het een laser die aanstaat?
+
+
 
 data InfoToShow = ShowNothing
                 | ShowANumber Int
@@ -36,7 +45,7 @@ data GameState = GameState {
                  }
 
 initialState :: GameState
-initialState = GameState ShowNothing S.empty timersFreqs (P (Pt 0 0) Peashooter 5 3 []) [Swarm 3 (Pt 50 0) 10] 0 0
+initialState = GameState ShowNothing S.empty timersFreqs (P (Pt 0 0) Peashooter 5 3 (0, 0) []) [] 0 0
 
 timersFreqs :: [TimerFreq]
 timersFreqs = [T "Swarm" 0 1, T "Worm" 0 10]
@@ -44,13 +53,13 @@ timersFreqs = [T "Swarm" 0 1, T "Worm" 0 10]
 data Player = P {
                 position :: Pos,
                 weapon :: Weapon,
-                speed :: Speed,
+                speed :: Speed, -- weet niet hoe nuttig het is om dit te doen, is het handiger om het globaal te definieren
                 health :: Health,
+                playerTimer :: (Time, Freq),
                 bullets :: [Bullet] -- change to also accept rockets etc
                 }
 
-data Weapon = Peashooter | Launcher | Laser
--- type Bullet = Pos
+data Weapon = Peashooter | Launcher | Laser 
 
 instance Show Weapon where -- is dit nodig? ja voor het bepalen wat voor ammo er geschoten word toch
     show Peashooter = "PeaShooter"
@@ -71,7 +80,6 @@ type Health = Int
 type Speed = Int
 type Size = Float
 
--- data Swarm = Swarm Health Size Pos
 
 data Pos = Pt Float Float deriving (Eq)
 
@@ -88,11 +96,3 @@ instance Show Enemy where
   show (Turret {}) = "Turret"
   show (Worm {}) = "Worm"
   show (Boss {}) = "Boss"
-
-
--- do i have to work with monads??
--- data Ammo a = Ender Pos | Creeper a
-
--- instance Monad Ammo where
---   (Ender p) >>= f = Ender p 
---   return = Just
