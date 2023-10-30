@@ -12,9 +12,12 @@ import Data.Maybe
 import Data.Set as S hiding (map, filter)
 -- import System.Exit (exitSuccess)
 
+
+
 -- TODOS
 -- maybe make more packages to have a cleaner file
--- Misschien een sniper maken
+-- collision damage
+-- Misschien een sniper maken of burst in meerdere richtingen
 -- boosts/health maken
 -- artwork
 -- background elements
@@ -49,10 +52,10 @@ step secs gstate =
 
 
     -- check if any bullet hits an enemy and moves the bullet
-    let movedPlayer = movementHandler (S.toList (keys gstate)) (player gstate) -- move the player
+    let movedPlayer = movementHandler (S.toList (keys gstate)) (screenSize) (player gstate) -- move the player
     let movedBullets = mapMaybe (\bullet -> bulletHit bullet (enemies gstate)) (map moveBullet bts) -- move the bullets and check if they should be discarded
     let removeOffscreenBullets = bulletOffscreen movedBullets screenSize
-    let bulletHandlerRes = bulletHandler (keys gstate) secs movedPlayer -- add new bullets based on the weapon and rate (and amount maybe)
+    let bulletHandlerRes = bulletHandler (keys gstate) (elapsedTime gstate + secs) movedPlayer -- add new bullets based on the weapon and rate (and amount maybe)
     let newBullets = snd bulletHandlerRes
     let newPlayerTimer = fst bulletHandlerRes
     let updatedPlayer = movedPlayer {bullets = newBullets ++ removeOffscreenBullets, playerTimer = newPlayerTimer} -- update them for the player
@@ -65,8 +68,6 @@ step secs gstate =
     let removeOffscreenEnemies = enemyOffscreen (fst splitEnemiesRes) screenSize -- remove offscreen alive enemies
 
     let updatedScore = score gstate + calcScore (snd splitEnemiesRes)
-
-
 
 
 
@@ -104,10 +105,10 @@ damageEnemy (b:bts) e
             Rocket {} -> 5
             Laserbeam {}  -> 10 -- verlagen
     enemy = case e of
-          Swarm h p s -> Swarm (h - dmg) p s
-          Worm h p s -> Worm (h - dmg) p s 
-          Turret h p s -> Turret (h - dmg) p s 
-          Boss h p s -> Boss (h - dmg) p s 
+          Swarm h p s be -> Swarm (h - dmg) p s be
+          Worm h p s be -> Worm (h - dmg) p s be
+          Turret h p s be -> Turret (h - dmg) p s be 
+          Boss h p s be -> Boss (h - dmg) p s be
 
 
 -- split the list of enemies into a list of alive enemies and dead ones
@@ -144,9 +145,9 @@ spawner ((T name time freq):r) secs p
     | otherwise = ((T name (time + secs) freq), Nothing) : spawner r secs p
     where
       enemy = case name of
-        "Swarm" -> Swarm 3 p 20
-        "Turret" -> Turret 10000 (Pt 200 0) 30 -- dont know what the position of this needs to be
-        "Worm" -> Worm 5 p 30
+        "Swarm" -> Swarm 3 p 20 []
+        "Turret" -> Turret 10000 (Pt 200 0) 30 [] -- dont know what the position of this needs to be
+        "Worm" -> Worm 5 p 30 []
 
 
 calcScore :: [Enemy] -> Score
@@ -156,10 +157,10 @@ calcScore (e:es)
   | otherwise = calcScore es
   where
     (h, points) = case e of
-              Swarm h p s -> (h, 5) -- how should I define this properly? things like globally defined variables in packages
-              Turret h p s -> (h, 10)
-              Worm h p s -> (h, 15)
-              Boss h p s -> (h, 50)
+              Swarm h p s b -> (h, 5) -- how should I define this properly? things like globally defined variables in packages
+              Turret h p s be -> (h, 10)
+              Worm h p s be -> (h, 15)
+              Boss h p s be -> (h, 50)
 
 
 -- define the movements of the bullets of the player
@@ -168,16 +169,18 @@ moveBullet (Pea (Pt x y)) = Pea (Pt (x + peashooterSpeed) y)
 moveBullet (Rocket (Pt x y)) = Rocket (Pt (x + rocketSpeed) y)
 moveBullet (Laserbeam (Pt x y)) = Laserbeam (Pt (x + 15) y) -- schiet elke frame een kogel
 
+
+
 -- define movement of the enemies this needs to be more complex. think sine waves or diagonals or something alike
 moveEnemy :: Enemy -> Enemy
-moveEnemy (Swarm h (Pt x y) s) = Swarm h (Pt (x - 3) y) s
-moveEnemy (Turret h (Pt x y) s) = Turret h (Pt (x - 3) y) s
-moveEnemy (Worm h (Pt x y) s) = Worm h (Pt (x - 3) y) s
-moveEnemy (Boss h (Pt x y) s) = Boss h (Pt (x - 3) y) s
+moveEnemy (Swarm h (Pt x y) s be) = Swarm h (Pt (x - 3) y) s be
+moveEnemy (Turret h (Pt x y) s be) = Turret h (Pt (x - 3) y) s be
+moveEnemy (Worm h (Pt x y) s be) = Worm h (Pt (x - 3) y) s be
+moveEnemy (Boss h (Pt x y) s be) = Boss h (Pt (x - 3) y) s be
 
-movementHandler :: [Char] -> Player -> Player
-movementHandler [] p = p
-movementHandler (c:chars) p = movementHandler chars newPlayer
+movementHandler :: [Char] -> (Int, Int) -> Player -> Player
+movementHandler [] s p = p
+movementHandler (c:chars) s@(xScreen, yScreen) p = movementHandler chars s newPlayer
   where
     (P (Pt x y) we vel l t b) = p
     newPlayer = case c of
@@ -210,10 +213,10 @@ ptInSquare b e = xb <= xe + s + margin && xe - margin <= xb && yb <= ye + s + ma
 
 
 enemyInf :: Enemy -> (Health, Pos, Size)
-enemyInf (Swarm h p s) = (h, p, s)
-enemyInf (Turret h p s) = (h, p, s)
-enemyInf (Worm h p s) = (h, p, s)
-enemyInf (Boss h p s) = (h, p, s)
+enemyInf (Swarm h p s be) = (h, p, s)
+enemyInf (Turret h p s be) = (h, p, s)
+enemyInf (Worm h p s be) = (h, p, s)
+enemyInf (Boss h p s be) = (h, p, s)
 
 bulletPos :: Bullet -> Pos
 bulletPos (Pea p) = p
@@ -253,7 +256,7 @@ inputKey (EventKey (SpecialKey KeyTab) Down _ _) gstate
       (P (Pt x y) we vel l (t, f) b) = player gstate
       newWe = switchWeapon we
       newF = case newWe of
-        Peashooter -> 0.2
+        Peashooter -> 0.5
         Launcher -> 1
         Laser -> 0.1 -- lastig dit zeg tering
 

@@ -27,10 +27,10 @@ circ gstate =
 enemiesPics :: [Enemy] -> [Picture]
 enemiesPics [] = []
 enemiesPics (enemy:es) = enemiesPics es ++ case enemy of
-                            Swarm _ (Pt x y) s -> [Translate x y (color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))]
-                            Turret _ (Pt x y) s -> [Translate x y (color blue (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))]
-                            Worm _ (Pt x y) s -> [Translate x y (color yellow (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))]
-                            Boss _ (Pt x y) s -> [Translate x y (color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))]
+                            Swarm _ (Pt x y) s be -> [Translate x y (color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))]
+                            Turret _ (Pt x y) s be -> [Translate x y (color blue (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))]
+                            Worm _ (Pt x y) s be -> [Translate x y (color yellow (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))]
+                            Boss _ (Pt x y) s be -> [Translate x y (color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))]
 
 
 
