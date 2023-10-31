@@ -91,51 +91,38 @@ bulletHandler set secs p
 
 
 -- | check if any bullets hit an enemy and degrade its health
--- May need to be altered to return the enemy with negative health to then calculate the score more easily when dealing with spawners and offscreen deletions
 damageEnemy :: [Bullet] -> Enemy -> Enemy
 damageEnemy [] e = e
 damageEnemy (b:bts) e
-  | ptInSquare b e = damageEnemy bts enemy
+  | ptInSquare b e = damageEnemy bts (e { enemyHealth = enemyHealth e - bulletDamage b }) -- werkt dit zo?
   | otherwise = damageEnemy bts e
-  where
-    p1 = bulletPos b
-    (h, p, s) = enemyInf enemy
-    dmg = case b of
-            Pea {} -> 1 -- is er een manier waarop ik dit kan global kan definieren? ja! 
-            Rocket {} -> 5
-            Laserbeam {}  -> 10 -- verlagen
-    enemy = case e of
-          Swarm h p s be -> Swarm (h - dmg) p s be
-          Worm h p s be -> Worm (h - dmg) p s be
-          Turret h p s be -> Turret (h - dmg) p s be 
-          Boss h p s be -> Boss (h - dmg) p s be
 
 
 -- split the list of enemies into a list of alive enemies and dead ones
 splitEnemies :: [Enemy] -> [Enemy] -> [Enemy] -> ([Enemy], [Enemy]) -- maybe define new types to distinguish better what each list represents
 splitEnemies [] alive dead = (alive, dead)
 splitEnemies (e:es) alive dead
-    | h <= 0 = splitEnemies es alive (e:dead)
+    | enemyHealth e <= 0 = splitEnemies es alive (e:dead)
     | otherwise = splitEnemies es (e:alive) dead
-    where
-      (h, p, s) = enemyInf e
 
 
+-- maybe need to define an entity datatype (though what troubles does this give us?)
 -- may want to add a margin so the enemy does not immediately despawn the second it hits the edge of the screen
 bulletOffscreen :: [Bullet] -> (Int, Int) -> [Bullet]
 bulletOffscreen [] _ = []
 bulletOffscreen (b:bts) (x, y)
-    | fromIntegral (x `div` 2) - 100 <= bx = bulletOffscreen bts (x, y)
+    | fromIntegral (x `div` 2) - margin <= bx = bulletOffscreen bts (x, y) -- only checks on the x not the y and only the right part of the screen not the left (is this necessary? think boomerangs)
     | otherwise = b : bulletOffscreen bts (x, y)
     where
-      (Pt bx by) = bulletPos b
+      (Pt bx by) = bulletPosition b
+      margin = 100
 enemyOffscreen :: [Enemy] -> (Int, Int) -> [Enemy]
 enemyOffscreen [] _ = []
-enemyOffscreen (b:bts) (x, y)
-    | fromIntegral (x `div` 2) <= ex = enemyOffscreen bts (x, y)
-    | otherwise = b : enemyOffscreen bts (x, y)
+enemyOffscreen (e:es) (x, y)
+    | fromIntegral (x `div` 2) <= ex = enemyOffscreen es (x, y)
+    | otherwise = e : enemyOffscreen es (x, y)
     where
-      (_, Pt ex ey, _) = enemyInf b
+      Pt ex ey = enemyPosition e
 
 
 spawner :: [TimerFreq] -> Float -> Pos -> [(TimerFreq, Maybe Enemy)]
@@ -145,49 +132,53 @@ spawner ((T name time freq):r) secs p
     | otherwise = ((T name (time + secs) freq), Nothing) : spawner r secs p
     where
       enemy = case name of
-        "Swarm" -> Swarm 3 p 20 []
-        "Turret" -> Turret 10000 (Pt 200 0) 30 [] -- dont know what the position of this needs to be
-        "Worm" -> Worm 5 p 30 []
+        "Swarm" -> Enemy 3 p 20 [] Swarm 
+        "Turret" -> Enemy 10000 (Pt 200 0) 30 [] Turret -- dont know what the position of this needs to be
+        "Worm" -> Enemy 5 p 30 [] Worm
 
 
 calcScore :: [Enemy] -> Score
 calcScore [] = 0
 calcScore (e:es)
-  | h <= 0 = points + calcScore es
+  | enemyHealth e <= 0 = points + calcScore es
   | otherwise = calcScore es
   where
-    (h, points) = case e of
-              Swarm h p s b -> (h, 5) -- how should I define this properly? things like globally defined variables in packages
-              Turret h p s be -> (h, 10)
-              Worm h p s be -> (h, 15)
-              Boss h p s be -> (h, 50)
+    points = case enemySpecies e of
+              Swarm -> 5 -- how should I define this properly? things like globally defined variables in packages
+              Turret -> 10
+              Worm -> 15
+              Boss -> 50
 
 
 -- define the movements of the bullets of the player
 moveBullet :: Bullet -> Bullet
-moveBullet (Pea (Pt x y)) = Pea (Pt (x + peashooterSpeed) y)
-moveBullet (Rocket (Pt x y)) = Rocket (Pt (x + rocketSpeed) y)
-moveBullet (Laserbeam (Pt x y)) = Laserbeam (Pt (x + 15) y) -- schiet elke frame een kogel
-
+moveBullet b = b {bulletPosition = Pt (x + bulletSpeed b) y}
+    where
+      (Pt x y) = bulletPosition b -- not sure that this is the right way, maybe different bullets move differently
 
 
 -- define movement of the enemies this needs to be more complex. think sine waves or diagonals or something alike
-moveEnemy :: Enemy -> Enemy
-moveEnemy (Swarm h (Pt x y) s be) = Swarm h (Pt (x - 3) y) s be
-moveEnemy (Turret h (Pt x y) s be) = Turret h (Pt (x - 3) y) s be
-moveEnemy (Worm h (Pt x y) s be) = Worm h (Pt (x - 3) y) s be
-moveEnemy (Boss h (Pt x y) s be) = Boss h (Pt (x - 3) y) s be
+moveEnemy :: Enemy -> (Int, Int) -> Enemy
+moveEnemy e s = e {enemyPosition = Pt (x - xdif) (y- ydif)}
+  where
+    (Pt x y) = enemyPosition e
+    xdif = case enemySpecies e of
+      Swarm -> 3
+      Turret -> 3
+      Worm -> 3
+      Boss -> 3
+    ydif = 1 * sin (1/(100 * 2*pi) * (x - xdif)) -- baseer dit op de screensize
 
 movementHandler :: [Char] -> (Int, Int) -> Player -> Player
 movementHandler [] s p = p
 movementHandler (c:chars) s@(xScreen, yScreen) p = movementHandler chars s newPlayer
   where
-    (P (Pt x y) we vel l t b) = p
+    (Pt x y) = position p
     newPlayer = case c of
-      'w' -> P (Pt x (y + 8)) we vel l t b
-      'a' -> P (Pt (x - 8) y) we vel l t b 
-      's' -> P (Pt x (y - 8)) we vel l t b
-      'd' -> P (Pt (x + 8) y) we vel l t b
+      'w' -> p {position = (Pt x (y + 8))}
+      'a' -> p {position = (Pt (x - 8) y)}
+      's' -> p {position = (Pt x (y - 8))}
+      'd' -> p {position = (Pt (x + 8) y)}
       _ -> p -- if it gets a key it doesnt understand ignore it (redundant if well implemented)
 
 -- | Check if any of the bullets hit an enemy and destroy the bullet, do nothing with the enemy
@@ -196,37 +187,27 @@ bulletHit bullet [] = Just bullet -- keep bullet if it hits no enemies
 bulletHit bullet (enemy : enemies)
   | ptInSquare bullet enemy = Nothing -- discard the bullet if it is in the hitbox of the enemy
   | otherwise = bulletHit bullet enemies -- otherwise recurse
-  where
-    p1 = bulletPos bullet
-    (h, p, s) = enemyInf enemy
+
 -- check if a point is in a square for bullets, may need altering for bigger hitboxes for bullets, do we just define the size of the bullets? or base it off of the weapon/bullet used
 ptInSquare :: Bullet -> Enemy -> Bool
 ptInSquare b e = xb <= xe + s + margin && xe - margin <= xb && yb <= ye + s + margin && ye - margin <= yb
     where
-      (Pt xb yb) = bulletPos b
-      (h, (Pt xe ye), s) = enemyInf e
-      margin = case b of
-        Pea {} -> 5 -- half of the size of the circle we use to view it, radius v diameter things
-        Rocket {} -> 10
-        Laserbeam {} -> 5 -- this is all different since its basically a bunch of bullets
+      (Pt xb yb) = bulletPosition b
+      s = enemySize e
+      (Pt xe ye) = enemyPosition e
+
+      margin = case bulletType b of -- misschien een bulletSize definieren in de Bullet datatype
+        Pea -> 5 -- half of the size of the circle we use to view it, radius v diameter things
+        Rocket -> 10
+        Laserbeam -> 5 -- this is all different since its basically a bunch of bullets
 
 
 
-enemyInf :: Enemy -> (Health, Pos, Size)
-enemyInf (Swarm h p s be) = (h, p, s)
-enemyInf (Turret h p s be) = (h, p, s)
-enemyInf (Worm h p s be) = (h, p, s)
-enemyInf (Boss h p s be) = (h, p, s)
-
-bulletPos :: Bullet -> Pos
-bulletPos (Pea p) = p
-bulletPos (Rocket p) = p
-bulletPos (Laserbeam p) = p
 
 getBullet :: Weapon -> Pos -> Bullet
-getBullet Peashooter = Pea
-getBullet Launcher = Rocket
-getBullet Laser = Laserbeam -- alter the way this works, meaning also having to alter bulletmovements
+getBullet Peashooter p = Bullet Pea p 5 8 5
+getBullet Launcher p = Bullet Rocket p 10 8 10
+getBullet Laser p = Bullet Laserbeam p 10 8 40      -- alter the way this works, meaning also having to alter bulletmovements
 
 switchWeapon :: Weapon -> Weapon
 switchWeapon Peashooter = Launcher
