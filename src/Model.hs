@@ -70,7 +70,7 @@ data Bullet = Bullet {
   bulletSpeed :: Speed,
   bulletSize :: Size
 } deriving Eq
-data BulletType = Pea | Rocket | Laserbeam deriving Eq -- laserbeam might not be represented as a bullet
+data BulletType = Pea | Rocket | Laserbeam | Explosion deriving Eq -- laserbeam might not be represented as a bullet
 
 type Score = Int
 type Health = Int
@@ -95,3 +95,4 @@ data Enemy = Enemy {
     , enemySpecies :: EnemySpecies
 } deriving Eq
 data EnemySpecies = Swarm | Worm | Turret | Boss deriving Eq
+-- maak kamikaze enemy die explodeert met gastank op rug bijv

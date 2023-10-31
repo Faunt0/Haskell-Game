@@ -54,7 +54,7 @@ step secs gstate =
     let movedPlayer = movementHandler (S.toList (keys gstate)) (screenSize) (player gstate) -- move the player
     let movedBullets = mapMaybe (\bullet -> bulletHit bullet (enemies gstate)) (map moveBullet bts) -- move the bullets and check if they should be discarded
     let removeOffscreenBullets = bulletOffscreen movedBullets screenSize
-    let bulletHandlerRes = bulletHandler (keys gstate) (elapsedTime gstate + secs) movedPlayer -- add new bullets based on the weapon and rate (and amount maybe)
+    let bulletHandlerRes = bulletHandler (keys gstate) secs movedPlayer -- add new bullets based on the weapon and rate (and amount maybe)
     let newBullets = snd bulletHandlerRes
     let newPlayerTimer = fst bulletHandlerRes
     let updatedPlayer = movedPlayer {bullets = newBullets ++ removeOffscreenBullets, playerTimer = newPlayerTimer} -- update them for the player
@@ -78,6 +78,17 @@ step secs gstate =
     (P p w v l (t, f) bts) = player gstate
 
 
+-- need to update to incorporate the rate of fire and also account for laser mechanics, a beam/ray of bullets continuously shooting from the player at the same y as the player
+bulletHandler :: Set Char -> Float -> Player -> ((Time, Freq), [Bullet])
+bulletHandler set secs p
+    | S.member '.' set && t > f = ((0, f), [getBullet we (Pt x y)])
+    | otherwise = ((t + secs, f), [])
+  where
+    (Pt x y) = position p
+    we = weapon p
+    (t, f) = playerTimer p
+
+
 
 -- define the movements of the bullets of the player
 moveBullet :: Bullet -> Bullet
@@ -98,13 +109,6 @@ moveEnemy e = e {enemyPosition = Pt (x - xdif) (y- ydif)}
       Boss -> 3
     ydif = 1 * sin (1/(100 * 2*pi) * (x - xdif)) -- baseer dit op de screensize
 
--- need to update to incorporate the rate of fire and also account for laser mechanics, a beam/ray of bullets continuously shooting from the player at the same y as the player
-bulletHandler :: Set Char -> Float -> Player -> ((Time, Freq), [Bullet])
-bulletHandler set secs p
-    | S.member '.' set && t > f = ((0, f), [getBullet we (Pt x y)])
-    | otherwise = ((t + secs, f), [])
-  where
-    (P (Pt x y) we vel l (t, f) b) = p
 
 
 -- | check if any bullets hit an enemy and degrade its health
@@ -121,25 +125,6 @@ splitEnemies [] alive dead = (alive, dead)
 splitEnemies (e:es) alive dead
     | enemyHealth e <= 0 = splitEnemies es alive (e:dead)
     | otherwise = splitEnemies es (e:alive) dead
-
-
--- maybe need to define an entity datatype (though what troubles does this give us?)
--- may want to add a margin so the enemy does not immediately despawn the second it hits the edge of the screen
--- bulletOffscreen :: [Bullet] -> (Int, Int) -> [Bullet]
--- bulletOffscreen [] _ = []
--- bulletOffscreen (b:bts) (x, y)
---     | fromIntegral (x `div` 2) - margin <= bx = bulletOffscreen bts (x, y) -- only checks on the x not the y and only the right part of the screen not the left (is this necessary? think boomerangs)
---     | otherwise = b : bulletOffscreen bts (x, y)
---     where
---       (Pt bx by) = bulletPosition b
---       margin = 100
--- enemyOffscreen :: [Enemy] -> (Int, Int) -> [Enemy]
--- enemyOffscreen [] _ = []
--- enemyOffscreen (e:es) (x, y)
---     | fromIntegral (x `div` 2) <= ex = enemyOffscreen es (x, y)
---     | otherwise = e : enemyOffscreen es (x, y)
---     where
---       Pt ex ey = enemyPosition e
 
 
 spawner :: [TimerFreq] -> Float -> Pos -> [(TimerFreq, Maybe Enemy)]
@@ -194,12 +179,7 @@ ptInSquare b e = xb <= xe + s + margin && xe - margin <= xb && yb <= ye + s + ma
       (Pt xb yb) = bulletPosition b
       s = enemySize e
       (Pt xe ye) = enemyPosition e
-
-      margin = case bulletType b of -- misschien een bulletSize definieren in de Bullet datatype
-        Pea -> 5 -- half of the size of the circle we use to view it, radius v diameter things
-        Rocket -> 10
-        Laserbeam -> 5 -- this is all different since its basically a bunch of bullets
-
+      margin = bulletSize b
 
 
 
