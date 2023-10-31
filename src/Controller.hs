@@ -21,7 +21,6 @@ import Data.Set as S hiding (map, filter)
 -- boosts/health maken
 -- artwork
 -- background elements
--- misschien moet er rekening gehouden worden met
 -- misschien werken met ammo en reload systemen zodat je niet gewoon je knoppen kunt blijven spammen?
 -- misschien iets met dat je een moederschip moet beschermen wat damage krijgt van collissions met enemies
 -- misschien enemies die stil staan op gegeven momenten en gewoon schieten
@@ -62,7 +61,7 @@ step secs gstate =
 
 
     -- Handle the enemies
-    let moveEnemies = map moveEnemy (enemies gstate) -- move the enemies
+    let moveEnemies = map (moveEnemy screenSize) (enemies gstate) -- move the enemies
     let updatedEnemies = map (damageEnemy (map moveBullet bts)) moveEnemies -- damage the enemies
     let splitEnemiesRes = splitEnemies updatedEnemies [] [] -- start with 0 alive/dead enemies
     let removeOffscreenEnemies = enemyOffscreen (fst splitEnemiesRes) screenSize -- remove offscreen alive enemies
@@ -80,6 +79,26 @@ step secs gstate =
   where
     (P p w v l (t, f) bts) = player gstate
 
+
+
+-- define the movements of the bullets of the player
+moveBullet :: Bullet -> Bullet
+moveBullet b = b {bulletPosition = Pt (x + bulletSpeed b) y}
+    where
+      (Pt x y) = bulletPosition b -- not sure that this is the right way, maybe different bullets move differently
+
+
+-- define movement of the enemies this needs to be more complex. think sine waves or diagonals or something alike
+moveEnemy :: (Int, Int) -> Enemy -> Enemy
+moveEnemy s e = e {enemyPosition = Pt (x - xdif) (y- ydif)}
+  where
+    (Pt x y) = enemyPosition e
+    xdif = case enemySpecies e of
+      Swarm -> 3
+      Turret -> 3
+      Worm -> 3
+      Boss -> 3
+    ydif = 1 * sin (1/(100 * 2*pi) * (x - xdif)) -- baseer dit op de screensize
 
 -- need to update to incorporate the rate of fire and also account for laser mechanics, a beam/ray of bullets continuously shooting from the player at the same y as the player
 bulletHandler :: Set Char -> Float -> Player -> ((Time, Freq), [Bullet])
@@ -150,24 +169,6 @@ calcScore (e:es)
               Boss -> 50
 
 
--- define the movements of the bullets of the player
-moveBullet :: Bullet -> Bullet
-moveBullet b = b {bulletPosition = Pt (x + bulletSpeed b) y}
-    where
-      (Pt x y) = bulletPosition b -- not sure that this is the right way, maybe different bullets move differently
-
-
--- define movement of the enemies this needs to be more complex. think sine waves or diagonals or something alike
-moveEnemy :: Enemy -> (Int, Int) -> Enemy
-moveEnemy e s = e {enemyPosition = Pt (x - xdif) (y- ydif)}
-  where
-    (Pt x y) = enemyPosition e
-    xdif = case enemySpecies e of
-      Swarm -> 3
-      Turret -> 3
-      Worm -> 3
-      Boss -> 3
-    ydif = 1 * sin (1/(100 * 2*pi) * (x - xdif)) -- baseer dit op de screensize
 
 movementHandler :: [Char] -> (Int, Int) -> Player -> Player
 movementHandler [] s p = p
