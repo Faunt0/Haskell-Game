@@ -39,15 +39,16 @@ data GameState = GameState {
                    timer :: [TimerFreq], -- a list (does this need to be a set? or not with correct implementation) of timers to spawn the enemies at certain rates
                    player :: Player,
                    enemies :: [Enemy],
+                   enemyBullets :: [Bullet],
                    score :: Score,
                    elapsedTime :: Float
                  }
 
 initialState :: GameState
-initialState = GameState ShowNothing S.empty timersFreqs (P (Pt 0 0) Peashooter 5 3 (0, 0) []) [] 0 0
+initialState = GameState ShowNothing S.empty spawnRate (P (Pt 0 0) Peashooter (5, 0) 3 (0, 0.5) []) [] [] 0 0
 
-timersFreqs :: [TimerFreq]
-timersFreqs = [T "Swarm" 0 1, T "Worm" 0 5]
+spawnRate :: [TimerFreq]
+spawnRate = [T "Swarm" 0 1, T "Worm" 0 5, T "Turret" 0 6]
 
 
 --friendly bullets
@@ -74,7 +75,7 @@ data BulletType = Pea | Rocket | Laserbeam | Explosion deriving Eq -- laserbeam 
 
 type Score = Int
 type Health = Int
-type Speed = Float
+type Speed = (Float, Float)
 type Size = Float
 
 
@@ -87,12 +88,17 @@ data Pos = Pt Float Float deriving (Eq)
 
 -- misschien beter om een entity class te maken
 -- kun je niet ook bullets modeleren als entities?
+-- hebben enemies een orientatie?
 data Enemy = Enemy {
-    enemyHealth :: Health
+    enemySpecies :: EnemySpecies
+    , enemyHealth :: Health
     , enemyPosition :: Pos
     , enemySize :: Size
-    , enemyBullets :: [Bullet]
-    , enemySpecies :: EnemySpecies
+    , enemyRate :: (Time, Freq)
+    -- , enemyBullets :: [EnemyBullet]
+    -- , enemyBullets :: [Bullet]
 } deriving Eq
 data EnemySpecies = Swarm | Worm | Turret | Boss deriving Eq
+
+data EnemyBullet = Vomit | Garbage | Vermin | Globs deriving Eq
 -- maak kamikaze enemy die explodeert met gastank op rug bijv

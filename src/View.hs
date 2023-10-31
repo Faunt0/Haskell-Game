@@ -18,12 +18,15 @@ circ gstate =
     , Translate 50 50 (viewScore gstate)] 
     ++ bulletPics bts
     ++ enemiesPics (enemies gstate)
-    ) -- enemy)
+    ++ bulletPics (enemyBullets gstate)
+    )
   where
     (P (Pt x y) _ _ _ _ bts) = player gstate
     playerBullets = bullets (player gstate)
 
-
+-- enemyBulletPics :: [Enemy] -> [Picture]
+-- enemyBulletPics [] = []
+-- enemyBulletPics (e:es) = enemyBulletPics es ++ bulletPics (enemyBullets e)
 
 -- another reason wy introducing entities might be a good idea
 bulletPics :: [Bullet] -> [Picture]

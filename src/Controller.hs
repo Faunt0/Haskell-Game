@@ -44,8 +44,9 @@ step secs gstate =
     random2 <- randomRIO (- fromIntegral yScreen, fromIntegral yScreen) :: IO Float
     let randomY = random2
 
+
     -- Spawner
-    let res = unzip (spawner (timer gstate) secs (Pt (fromIntegral (xScreen `div` 2)) randomY))
+    let res = unzip (spawner (timer gstate) secs screenSize (Pt (fromIntegral (xScreen `div` 2)) randomY))
     let newTimeFreq = fst res
     let newEnemies = catMaybes (snd res)
 
@@ -65,34 +66,65 @@ step secs gstate =
     let updatedEnemies = map (damageEnemy (map moveBullet bts)) moveEnemies -- damage the enemies
     let splitEnemiesRes = splitEnemies updatedEnemies [] [] -- start with 0 alive/dead enemies
     let removeOffscreenEnemies = enemyOffscreen (fst splitEnemiesRes) screenSize -- remove offscreen alive enemies
-
+    let enemyBts = unzip (map (enemyFire updatedPlayer secs) removeOffscreenEnemies)
+    let moveEnemyBullets = map moveBullet (enemyBullets gstate)
     let updatedScore = score gstate + calcScore (snd splitEnemiesRes)
+
+
+
 
     return (gstate { infoToShow = ShowANumber 0
     , elapsedTime = elapsedTime gstate + secs
     , player = updatedPlayer
-    , enemies = removeOffscreenEnemies ++ newEnemies
+    , enemies = fst enemyBts ++ newEnemies
+    , enemyBullets = moveEnemyBullets ++ flatten (snd enemyBts)
     , timer = newTimeFreq
     , score = updatedScore })
   where
     (P p w v l (t, f) bts) = player gstate
 
+flatten :: [[a]] -> [a]
+flatten [] = []
+flatten [a] = a
+flatten (h:t) = h ++ flatten t
 
--- need to update to incorporate the rate of fire and also account for laser mechanics, a beam/ray of bullets continuously shooting from the player at the same y as the player
+-- laser dynamics
 bulletHandler :: Set Char -> Float -> Player -> ((Time, Freq), [Bullet])
 bulletHandler set secs p
-    | S.member '.' set && t > f = ((0, f), [getBullet we (Pt x y)])
+    | S.member '.' set && t >= f = ((0, f), [getBullet we (Pt x y)])
     | otherwise = ((t + secs, f), [])
   where
     (Pt x y) = position p
     we = weapon p
     (t, f) = playerTimer p
 
+-- beetje randomizen
+enemyFire :: Player -> Float -> Enemy -> (Enemy, [Bullet])
+enemyFire player secs e
+  | t >= f = (e {enemyRate = (0, f)}, b)
+  | otherwise = (e {enemyRate = (t + secs, f)}, [])
+  where
+    (t, f) = enemyRate e
+    ePos@(Pt xe ye) = enemyPosition e
+    (Pt xp yp) = position player
+    xdif = xp - xe
+    ydif = yp - ye
+    d@(dx, dy) = (4 * (xdif / (xdif + ydif)), 4 * (ydif / (xdif + ydif))) -- let op dat je niet door 0 deelt als je op de vijand staat
+    -- incorporate the direction of the bullets based on the position of the player, maybe bullets taht move like snakes?
+    b = case enemySpecies e of
+        Swarm -> [Bullet Pea ePos 5 (dx, dy) 5]
+        Worm -> [] 
+        Turret -> [Bullet Pea ePos 5 (dx, dy) 5, Bullet Pea ePos 5 (-dx, dy) 5]
+        Boss -> [Bullet Rocket ePos 5 (dx, dy) 5]
+        -- Swarm -> [Vomit, Vomit]
+        -- Worm -> []
+        -- Turret -> [Vermin]
+        -- Boss -> [Globs]
 
 
 -- define the movements of the bullets of the player
 moveBullet :: Bullet -> Bullet
-moveBullet b = b {bulletPosition = Pt (x + bulletSpeed b) y}
+moveBullet b = b {bulletPosition = Pt (x + fst (bulletSpeed b)) (y + snd (bulletSpeed b))}
     where
       (Pt x y) = bulletPosition b -- not sure that this is the right way, maybe different bullets move differently
 
@@ -102,12 +134,14 @@ moveEnemy :: Enemy -> Enemy
 moveEnemy e = e {enemyPosition = Pt (x - xdif) (y- ydif)}
   where
     (Pt x y) = enemyPosition e
-    xdif = case enemySpecies e of
-      Swarm -> 3
-      Turret -> 3
-      Worm -> 3
-      Boss -> 3
-    ydif = 1 * sin (1/(100 * 2*pi) * (x - xdif)) -- baseer dit op de screensize
+    f :: Float -> Float
+    f a = 1 * sin (1/(100 * 2*pi) * (a - xdif))
+
+    (xdif, ydif) = case enemySpecies e of
+      Swarm -> (3, f x)
+      Turret -> (3, 0)
+      Worm -> (3, f x)
+      Boss -> (3, f x) -- deze beweegt toch niet?
 
 
 
@@ -127,16 +161,17 @@ splitEnemies (e:es) alive dead
     | otherwise = splitEnemies es (e:alive) dead
 
 
-spawner :: [TimerFreq] -> Float -> Pos -> [(TimerFreq, Maybe Enemy)]
-spawner [] _ _ = []
-spawner ((T name time freq):r) secs p 
-    | time >= freq = ((T name 0 freq), Just enemy) : spawner r secs p
-    | otherwise = ((T name (time + secs) freq), Nothing) : spawner r secs p
+spawner :: [TimerFreq] -> Float -> (Int, Int) -> Pos -> [(TimerFreq, Maybe Enemy)]
+spawner [] _ _ _ = []
+spawner ((T name time freq):r) secs screen@(xScreen, yScreen) p 
+    | time >= freq = ((T name 0 freq), Just enemy) : spawner r secs screen p
+    | otherwise = ((T name (time + secs) freq), Nothing) : spawner r secs screen p
     where
       enemy = case name of
-        "Swarm" -> Enemy 3 p 20 [] Swarm 
-        "Turret" -> Enemy 10000 (Pt 200 0) 30 [] Turret -- dont know what the position of this needs to be
-        "Worm" -> Enemy 5 p 30 [] Worm
+        "Swarm" -> Enemy Swarm 3 p 20 (0, 1)
+        "Turret" -> Enemy Turret 100000000 (Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2))) 30 (0, 1)
+        "Worm" -> Enemy Worm 5 p 30 (0, 3)
+
 
 
 calcScore :: [Enemy] -> Score
@@ -184,9 +219,9 @@ ptInSquare b e = xb <= xe + s + margin && xe - margin <= xb && yb <= ye + s + ma
 
 
 getBullet :: Weapon -> Pos -> Bullet
-getBullet Peashooter p = Bullet Pea p 5 8 5
-getBullet Launcher p = Bullet Rocket p 10 8 10
-getBullet Laser p = Bullet Laserbeam p 10 8 40      -- alter the way this works, meaning also having to alter bulletmovements
+getBullet Peashooter p = Bullet Pea p 5 (8, 0) 5
+getBullet Launcher p = Bullet Rocket p 10 (8, 0) 10
+getBullet Laser p = Bullet Laserbeam p 10 (8, 0) 40      -- alter the way this works, meaning also having to alter bulletmovements
 
 switchWeapon :: Weapon -> Weapon
 switchWeapon Peashooter = Launcher

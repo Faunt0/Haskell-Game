@@ -15,7 +15,7 @@ bulletOffscreen (b:bts) (x, y)
 enemyOffscreen :: [Enemy] -> (Int, Int) -> [Enemy]
 enemyOffscreen [] _ = []
 enemyOffscreen (e:es) (x, y)
-    | fromIntegral (x `div` 2) <= ex = enemyOffscreen es (x, y)
+    | fromIntegral (x `div` 2) <= ex || ex < - fromIntegral (x `div` 2) = enemyOffscreen es (x, y)
     | otherwise = e : enemyOffscreen es (x, y)
     where
       Pt ex ey = enemyPosition e
