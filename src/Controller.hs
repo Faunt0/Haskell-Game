@@ -11,7 +11,7 @@ import System.Random
 import Data.Maybe
 import Data.Set as S hiding (map, filter)
 -- import System.Exit (exitSuccess)
-
+import Offscreen
 
 
 -- TODOS
@@ -61,14 +61,12 @@ step secs gstate =
 
 
     -- Handle the enemies
-    let moveEnemies = map (moveEnemy screenSize) (enemies gstate) -- move the enemies
+    let moveEnemies = map (moveEnemy) (enemies gstate) -- move the enemies
     let updatedEnemies = map (damageEnemy (map moveBullet bts)) moveEnemies -- damage the enemies
     let splitEnemiesRes = splitEnemies updatedEnemies [] [] -- start with 0 alive/dead enemies
     let removeOffscreenEnemies = enemyOffscreen (fst splitEnemiesRes) screenSize -- remove offscreen alive enemies
 
     let updatedScore = score gstate + calcScore (snd splitEnemiesRes)
-
-
 
     return (gstate { infoToShow = ShowANumber 0
     , elapsedTime = elapsedTime gstate + secs
@@ -89,8 +87,8 @@ moveBullet b = b {bulletPosition = Pt (x + bulletSpeed b) y}
 
 
 -- define movement of the enemies this needs to be more complex. think sine waves or diagonals or something alike
-moveEnemy :: (Int, Int) -> Enemy -> Enemy
-moveEnemy s e = e {enemyPosition = Pt (x - xdif) (y- ydif)}
+moveEnemy :: Enemy -> Enemy
+moveEnemy e = e {enemyPosition = Pt (x - xdif) (y- ydif)}
   where
     (Pt x y) = enemyPosition e
     xdif = case enemySpecies e of
@@ -127,21 +125,21 @@ splitEnemies (e:es) alive dead
 
 -- maybe need to define an entity datatype (though what troubles does this give us?)
 -- may want to add a margin so the enemy does not immediately despawn the second it hits the edge of the screen
-bulletOffscreen :: [Bullet] -> (Int, Int) -> [Bullet]
-bulletOffscreen [] _ = []
-bulletOffscreen (b:bts) (x, y)
-    | fromIntegral (x `div` 2) - margin <= bx = bulletOffscreen bts (x, y) -- only checks on the x not the y and only the right part of the screen not the left (is this necessary? think boomerangs)
-    | otherwise = b : bulletOffscreen bts (x, y)
-    where
-      (Pt bx by) = bulletPosition b
-      margin = 100
-enemyOffscreen :: [Enemy] -> (Int, Int) -> [Enemy]
-enemyOffscreen [] _ = []
-enemyOffscreen (e:es) (x, y)
-    | fromIntegral (x `div` 2) <= ex = enemyOffscreen es (x, y)
-    | otherwise = e : enemyOffscreen es (x, y)
-    where
-      Pt ex ey = enemyPosition e
+-- bulletOffscreen :: [Bullet] -> (Int, Int) -> [Bullet]
+-- bulletOffscreen [] _ = []
+-- bulletOffscreen (b:bts) (x, y)
+--     | fromIntegral (x `div` 2) - margin <= bx = bulletOffscreen bts (x, y) -- only checks on the x not the y and only the right part of the screen not the left (is this necessary? think boomerangs)
+--     | otherwise = b : bulletOffscreen bts (x, y)
+--     where
+--       (Pt bx by) = bulletPosition b
+--       margin = 100
+-- enemyOffscreen :: [Enemy] -> (Int, Int) -> [Enemy]
+-- enemyOffscreen [] _ = []
+-- enemyOffscreen (e:es) (x, y)
+--     | fromIntegral (x `div` 2) <= ex = enemyOffscreen es (x, y)
+--     | otherwise = e : enemyOffscreen es (x, y)
+--     where
+--       Pt ex ey = enemyPosition e
 
 
 spawner :: [TimerFreq] -> Float -> Pos -> [(TimerFreq, Maybe Enemy)]

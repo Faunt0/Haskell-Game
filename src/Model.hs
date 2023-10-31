@@ -49,6 +49,8 @@ initialState = GameState ShowNothing S.empty timersFreqs (P (Pt 0 0) Peashooter 
 timersFreqs :: [TimerFreq]
 timersFreqs = [T "Swarm" 0 1, T "Worm" 0 5]
 
+
+--friendly bullets
 data Player = P {
                 position :: Pos,
                 weapon :: Weapon,
