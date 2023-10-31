@@ -16,21 +16,40 @@ circ gstate =
       Translate x y (color green (Circle 10)) -- Player
     , Translate 30 30 (viewPure gstate) -- info to show
     , Translate 50 50 (viewScore gstate)] 
-    ++ [Translate bx by (color blue (Circle 5)) | Pea (Pt bx by) <- bts] 
-    ++ [Translate bx by (color yellow (Circle 10)) | Rocket (Pt bx by) <- bts] 
+    ++ bulletPics bts
     ++ enemiesPics (enemies gstate)
     ) -- enemy)
   where
     (P (Pt x y) _ _ _ _ bts) = player gstate
+    playerBullets = bullets (player gstate)
+
+
+
+-- another reason wy introducing entities might be a good idea
+bulletPics :: [Bullet] -> [Picture]
+bulletPics [] = []
+bulletPics (b:bts) = bulletPic : bulletPics bts
+    where 
+      s = bulletSize b
+      (Pt x y) = bulletPosition b
+      bulletPic = case bulletType b of
+            Pea -> Translate x y (color blue (Circle 5))
+            Rocket -> Translate x y (color yellow (Circle 10))
+            Laserbeam -> Translate x y (color cyan (Line [(0, 0), (s, 0)]))
 
 
 enemiesPics :: [Enemy] -> [Picture]
 enemiesPics [] = []
-enemiesPics (enemy:es) = enemiesPics es ++ case enemy of
-                            Swarm _ (Pt x y) s be -> [Translate x y (color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))]
-                            Turret _ (Pt x y) s be -> [Translate x y (color blue (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))]
-                            Worm _ (Pt x y) s be -> [Translate x y (color yellow (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))]
-                            Boss _ (Pt x y) s be -> [Translate x y (color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))]
+enemiesPics (enemy:es) = enemyPic : enemiesPics es
+    where 
+      s = enemySize enemy
+      (Pt x y) = enemyPosition enemy
+      enemyPic = case enemySpecies enemy of
+            Swarm -> Translate x y (color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
+            Turret -> Translate x y (color blue (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
+            Worm -> Translate x y (color yellow (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
+            Boss -> Translate x y (color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
+            
 
 
 
@@ -43,7 +62,5 @@ viewPure gstate = case infoToShow gstate of
   ShowANumber n -> color green (text (show n))
   ShowAChar   c -> color green (text [c])
   ShowAString s -> color green (text s)
-
-
 
 -- background elements

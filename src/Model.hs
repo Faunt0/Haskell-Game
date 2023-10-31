@@ -47,8 +47,10 @@ initialState :: GameState
 initialState = GameState ShowNothing S.empty timersFreqs (P (Pt 0 0) Peashooter 5 3 (0, 0) []) [] 0 0
 
 timersFreqs :: [TimerFreq]
-timersFreqs = [T "Swarm" 0 1, T "Worm" 0 10]
+timersFreqs = [T "Swarm" 0 1, T "Worm" 0 5]
 
+
+--friendly bullets
 data Player = P {
                 position :: Pos,
                 weapon :: Weapon,
@@ -58,27 +60,21 @@ data Player = P {
                 bullets :: [Bullet] -- change to also accept rockets etc
                 }
 
-data Weapon = Peashooter | Launcher | Laser 
+data Weapon = Peashooter | Launcher | Laser
 
--- instance Show Weapon where -- is dit nodig? Nee
---     show Peashooter = "PeaShooter"
---     show Launcher = "Launcher"
---     show Laser = "Laser"
-
-data Bullet = Pea Pos 
-      | Rocket Pos 
-      | Laserbeam Pos
-      deriving (Eq)
-
--- misschien niet nodig, kan ook met (deriving show) en dan de string opsplitsen
-instance Show Bullet where
-    show (Pea _) = "Pea"
-    show (Rocket _) = "Rocket"
-    show (Laserbeam _) = "Laserbeam"
+-- misschien ook representeren op de andere manier voor makkelijkere functie definitie en aanpassingen voor boosts etc
+data Bullet = Bullet {
+  bulletType :: BulletType,
+  bulletPosition :: Pos,
+  bulletDamage :: Damage,
+  bulletSpeed :: Speed,
+  bulletSize :: Size
+} deriving Eq
+data BulletType = Pea | Rocket | Laserbeam deriving Eq -- laserbeam might not be represented as a bullet
 
 type Score = Int
 type Health = Int
-type Speed = Int
+type Speed = Float
 type Size = Float
 
 
@@ -87,25 +83,15 @@ data Pos = Pt Float Float deriving (Eq)
 -- hebben enemies ook een speed? heb ik globaal gedefinieerd, hier alleen dingen die aangepast worden tijdens het spel zelf. misschien dat size niet nodig is dan?
 -- hebben enemies ook hier gedefinieerd wat voor bullets ze afschieten? ja want dat verandert door de tijd
 -- maak het globaal als ik wil dat het niet kan worden veranderd
-data Enemy = Swarm Health Pos Size [Bullet]
-            | Turret Health Pos Size [Bullet] -- does not have lives since you cant hit them
-            | Worm Health Pos Size [Bullet]
-            | Boss Health Pos Size [Bullet]
-            deriving (Eq)
+
 
 -- misschien beter om een entity class te maken
 -- kun je niet ook bullets modeleren als entities?
--- data Enemy2 = Enemy2 {
---     enemyHealth :: Health
---     , enemyPosition :: Pos
---     , enemySize :: Size
---     , enemyBullets :: [Bullet]
---     , enemyType :: EnemySpecies
--- }
--- data EnemySpecies = Swarm | Worm | Turret | Boss
--- misschien niet nodig
-instance Show Enemy where
-  show (Swarm {}) = "Swarm"
-  show (Turret {}) = "Turret"
-  show (Worm {}) = "Worm"
-  show (Boss {}) = "Boss"
+data Enemy = Enemy {
+    enemyHealth :: Health
+    , enemyPosition :: Pos
+    , enemySize :: Size
+    , enemyBullets :: [Bullet]
+    , enemySpecies :: EnemySpecies
+} deriving Eq
+data EnemySpecies = Swarm | Worm | Turret | Boss deriving Eq
