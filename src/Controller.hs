@@ -40,8 +40,9 @@ step secs gstate =
     let xScreen = fst screenSize
     let yScreen = snd screenSize
 
+    let margin = 50
     random1 <- randomRIO (1, 5) :: IO Int
-    random2 <- randomRIO (- fromIntegral yScreen, fromIntegral yScreen) :: IO Float
+    random2 <- randomRIO (- fromIntegral yScreen + margin, fromIntegral yScreen - margin) :: IO Float
     let randomY = random2
 
 
@@ -94,7 +95,7 @@ bulletHandler set secs p
     | S.member '.' set && t >= f = ((0, f), [getBullet we (Pt x y)])
     | otherwise = ((t + secs, f), [])
   where
-    (Pt x y) = position p
+    (Pt x y) = fst (hitBox p)
     we = weapon p
     (t, f) = playerTimer p
 
@@ -105,17 +106,19 @@ enemyFire player secs e
   | otherwise = (e {enemyRate = (t + secs, f)}, [])
   where
     (t, f) = enemyRate e
-    ePos@(Pt xe ye) = enemyPosition e
-    (Pt xp yp) = position player
+    ePos@(Pt xe ye) = fst (enemyHitBox e)
+    (Pt xp yp) = fst (hitBox player)
     xdif = xp - xe
     ydif = yp - ye
-    d@(dx, dy) = (4 * (xdif / (xdif + ydif)), 4 * (ydif / (xdif + ydif))) -- let op dat je niet door 0 deelt als je op de vijand staat
+    c = sqrt(xdif ^ 2 + ydif^2)
+    d@(dx, dy) = (xdif * 4 / c, ydif * 4 / c)
+    -- d@(dx, dy) = (4 * (xdif / (xdif + ydif)), 4 * (ydif / (xdif + ydif))) -- let op dat je niet door 0 deelt als je op de vijand staat
     -- incorporate the direction of the bullets based on the position of the player, maybe bullets taht move like snakes?
     b = case enemySpecies e of
-        Swarm -> [Bullet Pea ePos 5 (dx, dy) 5]
+        Swarm -> [Bullet Pea (ePos, 10) 5 d]
         Worm -> [] 
-        Turret -> [Bullet Pea ePos 5 (dx, dy) 5, Bullet Pea ePos 5 (-dx, dy) 5]
-        Boss -> [Bullet Rocket ePos 5 (dx, dy) 5]
+        Turret -> [Bullet Pea (ePos, 10) 5 d, Bullet Pea (ePos, 10) 5 d]
+        Boss -> [Bullet Rocket (ePos, 10) 5 d]
         -- Swarm -> [Vomit, Vomit]
         -- Worm -> []
         -- Turret -> [Vermin]
@@ -124,18 +127,18 @@ enemyFire player secs e
 
 -- define the movements of the bullets of the player
 moveBullet :: Bullet -> Bullet
-moveBullet b = b {bulletPosition = Pt (x + fst (bulletSpeed b)) (y + snd (bulletSpeed b))}
+moveBullet b = b {bulletHitbox = (Pt (x + fst (bulletSpeed b)) (y + snd (bulletSpeed b)), snd (bulletHitbox b))}
     where
-      (Pt x y) = bulletPosition b -- not sure that this is the right way, maybe different bullets move differently
+      (Pt x y) = fst (bulletHitbox b) -- not sure that this is the right way, maybe different bullets move differently
 
 
 -- define movement of the enemies this needs to be more complex. think sine waves or diagonals or something alike
 moveEnemy :: Enemy -> Enemy
-moveEnemy e = e {enemyPosition = Pt (x - xdif) (y- ydif)}
+moveEnemy e = e {enemyHitBox = (Pt (x - xdif) (y- ydif), snd (enemyHitBox e))}
   where
-    (Pt x y) = enemyPosition e
+    (Pt x y) = fst (enemyHitBox e)
     f :: Float -> Float
-    f a = 1 * sin (1/(100 * 2*pi) * (a - xdif))
+    f a = 1 * sin (1/(10 * 2*pi) * (a - xdif))
 
     (xdif, ydif) = case enemySpecies e of
       Swarm -> (3, f x)
@@ -149,9 +152,11 @@ moveEnemy e = e {enemyPosition = Pt (x - xdif) (y- ydif)}
 damageEnemy :: [Bullet] -> Enemy -> Enemy
 damageEnemy [] e = e
 damageEnemy (b:bts) e
-  | ptInSquare b e = damageEnemy bts (e { enemyHealth = enemyHealth e - bulletDamage b }) -- werkt dit zo?
+  -- | ptInSquare b e = damageEnemy bts (e { enemyHealth = enemyHealth e - bulletDamage b }) -- werkt dit zo?
+  | hitBoxOverlap (bulletHitbox b) (enemyHitBox e) = damageEnemy bts (e { enemyHealth = enemyHealth e - bulletDamage b })
   | otherwise = damageEnemy bts e
 
+-- damagePlayer :: Player -> [Bullet] -> Bullet
 
 -- split the list of enemies into a list of alive enemies and dead ones
 splitEnemies :: [Enemy] -> [Enemy] -> [Enemy] -> ([Enemy], [Enemy]) -- maybe define new types to distinguish better what each list represents
@@ -168,11 +173,13 @@ spawner ((T name time freq):r) secs screen@(xScreen, yScreen) p
     | otherwise = ((T name (time + secs) freq), Nothing) : spawner r secs screen p
     where
       enemy = case name of
-        "Swarm" -> Enemy Swarm 3 p 20 (0, 1)
-        "Turret" -> Enemy Turret 100000000 (Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2))) 30 (0, 1)
-        "Worm" -> Enemy Worm 5 p 30 (0, 3)
+        "Swarm" -> Enemy Swarm 3 (p, 20) (0, 1)
+        "Turret" -> Enemy Turret 100000000 (Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2)), 30) (0, 3)
+        "Worm" -> Enemy Worm 5 (p, 30) (0, 2)
+        -- baseer het spawnen van de boss op de score, misschien een if then else gebruiken om alleen een boss te spawnen als de score zo hoog is en anders gewone enemies te spawnen.
 
-
+-- bossFight :: [] -> Score
+-- baseer het aantal enemies wat spawnt op de score en het hp van de boss
 
 calcScore :: [Enemy] -> Score
 calcScore [] = 0
@@ -192,36 +199,43 @@ movementHandler :: [Char] -> (Int, Int) -> Player -> Player
 movementHandler [] s p = p
 movementHandler (c:chars) s@(xScreen, yScreen) p = movementHandler chars s newPlayer
   where
-    (Pt x y) = position p
+    (Pt x y) = fst (hitBox p)
     newPlayer = case c of
-      'w' -> p {position = (Pt x (y + 8))}
-      'a' -> p {position = (Pt (x - 8) y)}
-      's' -> p {position = (Pt x (y - 8))}
-      'd' -> p {position = (Pt (x + 8) y)}
+      'w' -> p {hitBox = ((Pt x (y + 8)), snd (hitBox p))}
+      'a' -> p {hitBox = ((Pt (x - 8) y), snd (hitBox p))}
+      's' -> p {hitBox = ((Pt x (y - 8)), snd (hitBox p))}
+      'd' -> p {hitBox = ((Pt (x + 8) y), snd (hitBox p))}
       _ -> p -- if it gets a key it doesnt understand ignore it (redundant if well implemented)
 
 -- | Check if any of the bullets hit an enemy and destroy the bullet, do nothing with the enemy
 bulletHit :: Bullet -> [Enemy] -> Maybe Bullet
 bulletHit bullet [] = Just bullet -- keep bullet if it hits no enemies
 bulletHit bullet (enemy : enemies)
-  | ptInSquare bullet enemy = Nothing -- discard the bullet if it is in the hitbox of the enemy
+  | hitBoxOverlap (bulletHitbox bullet) (enemyHitBox enemy) = Nothing -- discard the bullet if it is in the hitbox of the enemy
   | otherwise = bulletHit bullet enemies -- otherwise recurse
 
--- check if a point is in a square for bullets, may need altering for bigger hitboxes for bullets, do we just define the size of the bullets? or base it off of the weapon/bullet used
-ptInSquare :: Bullet -> Enemy -> Bool
-ptInSquare b e = xb <= xe + s + margin && xe - margin <= xb && yb <= ye + s + margin && ye - margin <= yb
-    where
-      (Pt xb yb) = bulletPosition b
-      s = enemySize e
-      (Pt xe ye) = enemyPosition e
-      margin = bulletSize b
+-- misschien size een (Float, Float) maken zodat je ook rechthoeken/balken kunt hebben
+hitBoxOverlap :: HitBox -> HitBox -> Bool
+hitBoxOverlap ((Pt x1 y1), s1) ((Pt x2 y2), s2) = 
+  x1 < x2 + s2 && 
+  y1 < y2 + s2 &&
+  x2 < x1 + s1 &&
+  y2 < y1 + s1
 
+-- check if a point is in a square for bullets, may need altering for bigger hitboxes for bullets, do we just define the size of the bullets? or base it off of the weapon/bullet used
+-- ptInSquare :: Bullet -> Enemy -> Bool
+-- ptInSquare b e = xb <= xe + s + margin && xe - margin <= xb && yb <= ye + s + margin && ye - margin <= yb
+--     where
+--       (Pt xb yb) = bulletPosition b
+--       s = enemySize e
+--       (Pt xe ye) = enemyPosition e
+--       margin = bulletSize b
 
 
 getBullet :: Weapon -> Pos -> Bullet
-getBullet Peashooter p = Bullet Pea p 5 (8, 0) 5
-getBullet Launcher p = Bullet Rocket p 10 (8, 0) 10
-getBullet Laser p = Bullet Laserbeam p 10 (8, 0) 40      -- alter the way this works, meaning also having to alter bulletmovements
+getBullet Peashooter p = Bullet Pea (p, 5) 5 (8, 0)
+getBullet Launcher p = Bullet Rocket (p, 10) 10 (8, 0) 
+getBullet Laser p = Bullet Laserbeam (p, 10) 40 (8, 0)       -- alter the way this works, meaning also having to alter bulletmovements
 
 switchWeapon :: Weapon -> Weapon
 switchWeapon Peashooter = Launcher
@@ -246,9 +260,9 @@ inputKey (EventKey (SpecialKey KeySpace) Up _ _) gstate = gstate { keys = S.dele
 
 -- | Switch weapon when possible
 inputKey (EventKey (SpecialKey KeyTab) Down _ _) gstate
-  = gstate { infoToShow = ShowAString "SW", player = P (Pt x y) newWe vel l (0, newF) b } -- switch weapon
+  = gstate { infoToShow = ShowAString "SW", player = P hb newWe vel l (0, newF) b } -- switch weapon
     where
-      (P (Pt x y) we vel l (t, f) b) = player gstate
+      (P hb we vel l (t, f) b) = player gstate
       newWe = switchWeapon we
       newF = case newWe of
         Peashooter -> 0.5

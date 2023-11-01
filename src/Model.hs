@@ -22,7 +22,6 @@ laserbeamSpeed :: Float
 laserbeamSpeed = 10 -- is dit nodig als het een laser die aanstaat?
 
 
-
 data InfoToShow = ShowNothing
                 | ShowANumber Int
                 | ShowAChar   Char
@@ -44,16 +43,20 @@ data GameState = GameState {
                    elapsedTime :: Float
                  }
 
+-- let op dat je hier dingen globaal definieert
 initialState :: GameState
-initialState = GameState ShowNothing S.empty spawnRate (P (Pt 0 0) Peashooter (5, 0) 3 (0, 0.5) []) [] [] 0 0
+initialState = GameState ShowNothing S.empty spawnRate (P ((Pt 0 0), 10) Peashooter (5, 0) 3 (0, 0.5) []) [] [] 0 0
 
+
+-- dit kan ook in de enemy zelf toch?
 spawnRate :: [TimerFreq]
-spawnRate = [T "Swarm" 0 1, T "Worm" 0 5, T "Turret" 0 6]
+spawnRate = [T "Swarm" 0 1, T "Worm" 0 5, T "Turret" 0 6] -- spawnrates of the different enemies, this can be adjusted based on the score.
 
 
 --friendly bullets
 data Player = P {
-                position :: Pos,
+                -- position :: Pos,
+                hitBox :: HitBox,
                 weapon :: Weapon,
                 speed :: Speed, -- weet niet hoe nuttig het is om dit te doen, is het handiger om het globaal te definieren
                 health :: Health,
@@ -66,10 +69,11 @@ data Weapon = Peashooter | Launcher | Laser
 -- misschien ook representeren op de andere manier voor makkelijkere functie definitie en aanpassingen voor boosts etc
 data Bullet = Bullet {
   bulletType :: BulletType,
-  bulletPosition :: Pos,
+  bulletHitbox :: HitBox,
+  -- bulletPosition :: Pos,
   bulletDamage :: Damage,
-  bulletSpeed :: Speed,
-  bulletSize :: Size
+  bulletSpeed :: Speed
+  -- bulletSize :: Size
 } deriving Eq
 data BulletType = Pea | Rocket | Laserbeam | Explosion deriving Eq -- laserbeam might not be represented as a bullet
 
@@ -77,6 +81,7 @@ type Score = Int
 type Health = Int
 type Speed = (Float, Float)
 type Size = Float
+type HitBox = (Pos, Size) -- heeft dit zin? en dan eigenlijk alleen de hitbox verplaatsen? jazeker
 
 
 data Pos = Pt Float Float deriving (Eq)
@@ -92,8 +97,9 @@ data Pos = Pt Float Float deriving (Eq)
 data Enemy = Enemy {
     enemySpecies :: EnemySpecies
     , enemyHealth :: Health
-    , enemyPosition :: Pos
-    , enemySize :: Size
+    , enemyHitBox :: HitBox
+    -- , enemyPosition :: Pos
+    -- , enemySize :: Size
     , enemyRate :: (Time, Freq)
     -- , enemyBullets :: [EnemyBullet]
     -- , enemyBullets :: [Bullet]

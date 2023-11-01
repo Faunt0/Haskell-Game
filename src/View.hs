@@ -7,37 +7,36 @@ import Model
 import qualified Controller
 
 view :: GameState -> IO Picture
-view = return . circ
+view = return . pics
 
 
-circ :: GameState -> Picture
-circ gstate = 
+pics :: GameState -> Picture
+pics gstate = 
   Pictures ([
-      Translate x y (color green (Circle 10)) -- Player
+      Translate x y (color green (Circle s)) -- Player
     , Translate 30 30 (viewPure gstate) -- info to show
     , Translate 50 50 (viewScore gstate)] 
-    ++ bulletPics bts
+    ++ bulletPics bts -- player bullets
     ++ enemiesPics (enemies gstate)
-    ++ bulletPics (enemyBullets gstate)
+    ++ bulletPics (enemyBullets gstate) -- enemybullets
     )
   where
-    (P (Pt x y) _ _ _ _ bts) = player gstate
+    (P ((Pt x y), s) _ _ _ _ bts) = player gstate
     playerBullets = bullets (player gstate)
 
 -- enemyBulletPics :: [Enemy] -> [Picture]
 -- enemyBulletPics [] = []
 -- enemyBulletPics (e:es) = enemyBulletPics es ++ bulletPics (enemyBullets e)
 
--- another reason wy introducing entities might be a good idea
 bulletPics :: [Bullet] -> [Picture]
 bulletPics [] = []
 bulletPics (b:bts) = bulletPic : bulletPics bts
     where 
-      s = bulletSize b
-      (Pt x y) = bulletPosition b
+      s = snd (bulletHitbox b)
+      (Pt x y) = fst (bulletHitbox b)
       bulletPic = case bulletType b of
-            Pea -> Translate x y (color blue (Circle 5))
-            Rocket -> Translate x y (color yellow (Circle 10))
+            Pea -> Translate x y (color blue (Circle s))
+            Rocket -> Translate x y (color yellow (Circle s))
             Laserbeam -> Translate x y (color cyan (Line [(0, 0), (s, 0)]))
 
 
@@ -45,8 +44,8 @@ enemiesPics :: [Enemy] -> [Picture]
 enemiesPics [] = []
 enemiesPics (enemy:es) = enemyPic : enemiesPics es
     where 
-      s = enemySize enemy
-      (Pt x y) = enemyPosition enemy
+      s = snd (enemyHitBox enemy)
+      (Pt x y) = fst (enemyHitBox enemy)
       enemyPic = case enemySpecies enemy of
             Swarm -> Translate x y (color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
             Turret -> Translate x y (color blue (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
