@@ -4,22 +4,7 @@ module Model where
 -- import qualified Data.Set as S (Set, insert, delete, empty)
 import qualified Data.Set as S hiding (map, filter)
 
--- dit is een prima manier, dit is de b van y = ax + b wat handig is voor aanpassen als de score hoger wordt aangezien ik dan gewoon de formule kan intypen in de methode
-peashooterRate :: Float
-peashooterRate = 10
-peashooterSpeed :: Float
-peashooterSpeed = 20
-launcherRate :: Float
-launcherRate = 2
-rocketSpeed :: Float
-rocketSpeed = 40
-
--- laser implementeren word echt lastig
--- kan het door het een lijn te maken en de frequentie van de speler gewoon naar 0 te zetten?
-laserRate :: Float
-laserRate = 3 -- dit is anders
-laserbeamSpeed :: Float
-laserbeamSpeed = 10 -- is dit nodig als het een laser die aanstaat?
+import GameMechanics
 
 
 data InfoToShow = ShowNothing
@@ -32,79 +17,50 @@ type Time = Float
 type Freq = Float
 type Damage = Int
 
+type Score = Int
+type Health = Int
+type Formula = Float -> Float -- this can be useful for making the directions more complex
+type Direction = (Float, Formula) 
+type Size = Float
+data Pos = Pt Float Float deriving (Eq)
+type HitBox = (Pos, Size)
+
+type Player = Entity
+type Enemy = Entity
+type Bullet = Entity
+data Entity = E {
+      entityType :: EntityTypes,
+      health :: Health,
+      hitbox :: HitBox,
+      weapon :: Weapon,
+      damage :: Damage, -- on collision with another entity
+      direction :: Direction,
+      rate :: (Time, Freq),
+      bullets :: [Bullet] -- dit is niet nodig, als ik dit weg haal moeten we nadenken over of je kogels uit de lucht wil kunnen schieten
+} --deriving Eq
+
+data EntityTypes = Player | Worm | Swarm | Turret | Boss | Pea | Rocket | Laserbeam | Grenade | Explosion deriving Eq
+data Weapon = None | Peashooter | Launcher | Laser deriving Eq
+
 data GameState = GameState {
+                   status :: Int,
                    infoToShow  :: InfoToShow,
                    keys :: S.Set Char,
-                   timer :: [TimerFreq], -- a list (does this need to be a set? or not with correct implementation) of timers to spawn the enemies at certain rates
-                   player :: Player,
-                   enemies :: [Enemy],
-                   enemyBullets :: [Bullet],
+                   timer :: [TimerFreq], -- a list of timers to spawn the enemies at certain rates
+                   player :: Entity,
+                   enemies :: [Entity],
                    score :: Score,
-                   elapsedTime :: Float
+                   elapsedTime :: Float -- heb het eigenlijk niet nodig
                  }
 
 -- let op dat je hier dingen globaal definieert
 initialState :: GameState
-initialState = GameState ShowNothing S.empty spawnRate (P ((Pt 0 0), 10) Peashooter (5, 0) 3 (0, 0.5) []) [] [] 0 0
+initialState = GameState 0 ShowNothing S.empty spawnRate initialPlayer [] 0 0
+initialPlayer :: Entity
+initialPlayer = E Player 100 ((Pt 0 0), 10) Peashooter 50 (0, const 0) (0, 0.5) []
 
 
--- dit kan ook in de enemy zelf toch?
-spawnRate :: [TimerFreq]
+spawnRate :: [TimerFreq] -- kan niet in de enemy zelf omdat die niet nieuwe enimies kan spawnen
 spawnRate = [T "Swarm" 0 1, T "Worm" 0 5, T "Turret" 0 6] -- spawnrates of the different enemies, this can be adjusted based on the score.
 
 
---friendly bullets
-data Player = P {
-                -- position :: Pos,
-                hitBox :: HitBox,
-                weapon :: Weapon,
-                speed :: Speed, -- weet niet hoe nuttig het is om dit te doen, is het handiger om het globaal te definieren
-                health :: Health,
-                playerTimer :: (Time, Freq),
-                bullets :: [Bullet] -- change to also accept rockets etc
-                }
-
-data Weapon = Peashooter | Launcher | Laser
-
--- misschien ook representeren op de andere manier voor makkelijkere functie definitie en aanpassingen voor boosts etc
-data Bullet = Bullet {
-  bulletType :: BulletType,
-  bulletHitbox :: HitBox,
-  -- bulletPosition :: Pos,
-  bulletDamage :: Damage,
-  bulletSpeed :: Speed
-  -- bulletSize :: Size
-} deriving Eq
-data BulletType = Pea | Rocket | Laserbeam | Explosion deriving Eq -- laserbeam might not be represented as a bullet
-
-type Score = Int
-type Health = Int
-type Speed = (Float, Float)
-type Size = Float
-type HitBox = (Pos, Size) -- heeft dit zin? en dan eigenlijk alleen de hitbox verplaatsen? jazeker
-
-
-data Pos = Pt Float Float deriving (Eq)
-
--- hebben enemies ook een speed? heb ik globaal gedefinieerd, hier alleen dingen die aangepast worden tijdens het spel zelf. misschien dat size niet nodig is dan?
--- hebben enemies ook hier gedefinieerd wat voor bullets ze afschieten? ja want dat verandert door de tijd
--- maak het globaal als ik wil dat het niet kan worden veranderd
-
-
--- misschien beter om een entity class te maken
--- kun je niet ook bullets modeleren als entities?
--- hebben enemies een orientatie?
-data Enemy = Enemy {
-    enemySpecies :: EnemySpecies
-    , enemyHealth :: Health
-    , enemyHitBox :: HitBox
-    -- , enemyPosition :: Pos
-    -- , enemySize :: Size
-    , enemyRate :: (Time, Freq)
-    -- , enemyBullets :: [EnemyBullet]
-    -- , enemyBullets :: [Bullet]
-} deriving Eq
-data EnemySpecies = Swarm | Worm | Turret | Boss deriving Eq
-
-data EnemyBullet = Vomit | Garbage | Vermin | Globs deriving Eq
--- maak kamikaze enemy die explodeert met gastank op rug bijv

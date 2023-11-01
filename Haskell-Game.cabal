@@ -17,5 +17,6 @@ executable Haskell-Game
   other-modules:       Controller
                      , Model
                      , View
+                     , GameMechanics
                      , Offscreen
   default-language:    Haskell2010

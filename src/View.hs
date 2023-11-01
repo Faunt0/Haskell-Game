@@ -4,7 +4,7 @@ module View where
 
 import Graphics.Gloss
 import Model
-import qualified Controller
+import Controller
 
 view :: GameState -> IO Picture
 view = return . pics
@@ -15,46 +15,37 @@ pics gstate =
   Pictures ([
       Translate x y (color green (Circle s)) -- Player
     , Translate 30 30 (viewPure gstate) -- info to show
-    , Translate 50 50 (viewScore gstate)] 
-    ++ bulletPics bts -- player bullets
-    ++ enemiesPics (enemies gstate)
-    ++ bulletPics (enemyBullets gstate) -- enemybullets
+    , Translate 0 400 (scale 0.5 0.5 (viewScore gstate))] -- score
+    ++ entityPics bts -- player bullets
+    ++ entityPics (enemies gstate) -- render enemies
+    ++ entityPics (flatten (map bullets (enemies gstate))) -- enemy bullets
     )
   where
-    (P ((Pt x y), s) _ _ _ _ bts) = player gstate
+    ((Pt x y), s) = hitbox (player gstate)
+    bts = bullets (player gstate)
     playerBullets = bullets (player gstate)
 
--- enemyBulletPics :: [Enemy] -> [Picture]
--- enemyBulletPics [] = []
--- enemyBulletPics (e:es) = enemyBulletPics es ++ bulletPics (enemyBullets e)
 
-bulletPics :: [Bullet] -> [Picture]
-bulletPics [] = []
-bulletPics (b:bts) = bulletPic : bulletPics bts
+
+entityPics :: [Entity] -> [Picture]
+entityPics [] = []
+entityPics (entity:es) = pic : entityPics es
     where 
-      s = snd (bulletHitbox b)
-      (Pt x y) = fst (bulletHitbox b)
-      bulletPic = case bulletType b of
-            Pea -> Translate x y (color blue (Circle s))
-            Rocket -> Translate x y (color yellow (Circle s))
-            Laserbeam -> Translate x y (color cyan (Line [(0, 0), (s, 0)]))
-
-
-enemiesPics :: [Enemy] -> [Picture]
-enemiesPics [] = []
-enemiesPics (enemy:es) = enemyPic : enemiesPics es
-    where 
-      s = snd (enemyHitBox enemy)
-      (Pt x y) = fst (enemyHitBox enemy)
-      enemyPic = case enemySpecies enemy of
+      s = snd (hitbox entity)
+      (Pt x y) = fst (hitbox entity)
+      pic = case entityType entity of
+            -- enemies
             Swarm -> Translate x y (color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
             Turret -> Translate x y (color blue (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
             Worm -> Translate x y (color yellow (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
             Boss -> Translate x y (color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
+            -- bullets
+            Pea -> Translate x y (color blue (Circle s))
+            Rocket -> Translate x y (color yellow (Circle s))
+            Laserbeam -> Translate x y (color cyan (Line [(0, 0), (s, 0)]))
+            -- _ -> Blank -- is this necessary?
+
             
-
-
-
 viewScore :: GameState -> Picture
 viewScore gstate = color red (text (show (score gstate)))
 
