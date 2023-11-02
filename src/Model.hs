@@ -41,12 +41,14 @@ data Entity = E {
 
 data EntityTypes = Player | Worm | Swarm | Turret | Boss | Pea | Rocket | Laserbeam | Grenade | Explosion deriving Eq
 data Weapon = None | Peashooter | Launcher | Laser deriving Eq
+data Status = StartScreen | Game | Pause | GameOver deriving Eq
 
+-- moet misschien nog buttons eraan toevoegen
 data GameState = GameState {
-                   status :: Int,
+                   status :: Status,
                    infoToShow  :: InfoToShow,
                    keys :: S.Set Char,
-                   timer :: [TimerFreq], -- a list of timers to spawn the enemies at certain rates
+                   timer :: [TimerFreq], -- moet ik dit wel meegeven, kan ik dit niet beter gewoon aflezen? a list of timers to spawn the enemies at certain rates
                    player :: Entity,
                    enemies :: [Entity],
                    score :: Score,
@@ -55,7 +57,7 @@ data GameState = GameState {
 
 -- let op dat je hier dingen globaal definieert
 initialState :: GameState
-initialState = GameState 0 ShowNothing S.empty spawnRate initialPlayer [] 0 0
+initialState = GameState Game ShowNothing S.empty spawnRate initialPlayer [] 0 0
 initialPlayer :: Entity
 initialPlayer = E Player 100 ((Pt 0 0), 10) Peashooter 50 (0, const 0) (0, 0.5) []
 

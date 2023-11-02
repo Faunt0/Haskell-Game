@@ -11,7 +11,10 @@ view = return . pics
 
 
 pics :: GameState -> Picture
-pics gstate = 
+pics gstate
+  | status gstate == StartScreen = Translate (-200) (-50) (color green (text "Start!"))
+  -- | status gstate == GameOver = Translate (-200) (-50) (color green (text "Start!"))
+  | otherwise =
   Pictures ([
       Translate x y (color green (Circle s)) -- Player
     , Translate 30 30 (viewPure gstate) -- info to show

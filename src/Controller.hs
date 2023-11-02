@@ -34,9 +34,9 @@ import GameMechanics
 -- | Spawn enemies here based on a frequency which is correlated to the score of the player
 step :: Float -> GameState -> IO GameState
 step secs gstate
-  | status gstate == 1 = return gstate {infoToShow = ShowAString "START MENU"}
-  | status gstate == 2 = return gstate {infoToShow = ShowAString "PAUSED" }
-  | status gstate == 3 = return gstate {infoToShow = ShowAString "GAME OVER"}
+  | status gstate == StartScreen = return gstate {infoToShow = ShowAString "START MENU"}
+  | status gstate == Pause = return gstate {infoToShow = ShowAString "PAUSED" }
+  | status gstate == GameOver = return gstate {infoToShow = ShowAString "GAME OVER"}
   | otherwise =
   do 
     -- spawn new enemies
@@ -69,7 +69,7 @@ step secs gstate
     let movedEntities = map moveEntity (enemies gstate) -- move all the other entities except the player.
     let onScreenEntities = entityOffscreen movedEntities screenSize
     
-    let collisions = collissionCheck movedEntities updatedPlayer -- check if the enemies get shot and do the same for the player
+    let collisions = collissionCheck onScreenEntities updatedPlayer -- check if the enemies get shot and do the same for the player
 
     let splitEntitiesRes = splitEnemies (fst collisions) [] [] -- split the current enemies into the alive and dead ones
     let updatedScore = score gstate + calcScore (snd splitEntitiesRes) -- tabulate the score based on the alive entities
@@ -78,7 +78,7 @@ step secs gstate
 
 
 
-    let statusUpdate = if health (snd collisions) <= 0 then 3 else status gstate -- update the status based on the health of the player
+    let statusUpdate = if health (snd collisions) <= 0 then GameOver else status gstate -- update the status based on the health of the player
 
     return (gstate { status = statusUpdate
     , infoToShow = ShowANumber (health updatedPlayer)
@@ -268,7 +268,7 @@ inputKey (EventKey (SpecialKey KeyTab) Down _ _) gstate
         Launcher -> 1
         Laser -> 0.1 -- lastig dit zeg tering
 
-inputKey (EventKey (Char 'p') Down _ _) gstate = if status gstate == 2 then gstate {status = 0} else gstate {status = 2}
+inputKey (EventKey (Char 'p') Down _ _) gstate = if status gstate == Pause then gstate {status = Game} else gstate {status = Pause}
 inputKey (EventKey (Char 'r') _ _ _) gstate = initialState -- restart
 inputKey (EventKey (SpecialKey KeyEsc) _ _ _) gstate = error "Game exited"
 inputKey _ gstate = gstate -- Otherwise keep the same
