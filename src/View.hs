@@ -6,17 +6,18 @@ import Graphics.Gloss
 import Model
 import Controller
 
-view :: GameState -> IO Picture
-view = return . pics
+view :: [Picture] -> GameState -> IO Picture
+view p gstate= return (pics p gstate)
 
 
-pics :: GameState -> Picture
-pics gstate
+pics :: [Picture] -> GameState -> Picture
+pics (x1:xs1) gstate
   | status gstate == StartScreen = Translate (-200) (-50) (color green (text "Start!"))
   -- | status gstate == GameOver = Translate (-200) (-50) (color green (text "Start!"))
   | otherwise =
   Pictures ([
-      Translate x y (color green (Circle s)) -- Player
+    Translate x y (x1) -- Player
+      --Translate x y (color green (Circle s)) -- Player
     , Translate 30 30 (viewPure gstate) -- info to show
     , Translate 0 400 (scale 0.5 0.5 (viewScore gstate))] -- score
     ++ entityPics bts -- player bullets
@@ -24,7 +25,7 @@ pics gstate
     ++ entityPics (flatten (map bullets (enemies gstate))) -- enemy bullets
     )
   where
-    ((Pt x y), s) = hitbox (player gstate)
+    (Pt x y, s) = hitbox (player gstate)
     bts = bullets (player gstate)
     playerBullets = bullets (player gstate)
 

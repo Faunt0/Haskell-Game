@@ -12,7 +12,7 @@ entityOffscreen (e:bts) (x, y)
     | otherwise = e : entityOffscreen bts (x, y)
     where
       (Pt ex ey) = fst (hitbox e)
-      margin = 100
+      margin = 0
       isbullet = elem (entityType e) [Pea, Rocket, Laserbeam, Grenade]
       offscreen_Xaxis = ex >= fromIntegral (x `div` 2) - margin || ex <= - fromIntegral (x `div` 2) + margin
       offscreen_Yaxis = ey >= fromIntegral (y `div` 2) - margin || ey <= - fromIntegral (y `div` 2) + margin
