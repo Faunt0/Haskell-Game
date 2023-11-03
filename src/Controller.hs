@@ -71,7 +71,9 @@ step secs gstate
     
     let collisions = collissionCheck onScreenEntities updatedPlayer -- check if the enemies get shot and do the same for the player
 
-    let splitEntitiesRes = splitEnemies (fst collisions) [] [] -- split the current enemies into the alive and dead ones
+    let splitEntitiesRes = splitEnemies (fst collisions) [] [] -- split the current enemies into the alive and dead ones -- maybe use this list to see if rockets are dead and need to spawn another explosion? or you could make an enemy which upon dying spawns a couple of other smaller enemies
+    let necroEntities = undefined -- new entities based on the dead bullets
+    
     let updatedScore = score gstate + calcScore (snd splitEntitiesRes) -- tabulate the score based on the alive entities
 
     let entityFireBts = unzip (map (enemyFire updatedPlayer secs) (fst splitEntitiesRes)) -- let the alive entities fire bullets and add them to the entities list
@@ -106,11 +108,12 @@ bulletHandler set secs p
 
 collissionCheck :: [Entity] -> Player -> ([Entity], Player)
 collissionCheck [] p = ([], p)
-collissionCheck enms@(e:es) p = (damageEnt2, damagePlayer)
+collissionCheck enms@(e:es) p = (damageEnt2, damagePlayer {bullets = damagePlayerBullets})
     where
-      damagePlayer = collisionDamage enms p -- damage the player
-      damageEnt = map (collisionDamage (bullets p)) enms -- damage all the other entities (even bullets)
-      damageEnt2 = map (collisionDamage [p]) damageEnt
+      damagePlayer = collisionDamage enms p -- damage the player takes from colliding with entities
+      damagePlayerBullets = map (collisionDamage enms) (bullets p)
+      damageEnt = map (collisionDamage (bullets p)) enms -- damage the entities take from bullets
+      damageEnt2 = map (collisionDamage [p]) damageEnt -- damage the entities take from the player
 
 collisionDamage :: [Entity] -> Entity -> Entity
 collisionDamage [] e2 = e2
@@ -120,10 +123,11 @@ collisionDamage (e:es) e2
 
 -- moet ik hier nog iets doen over dat een dode raket een explosie kan veroorzaken? of een kamikaze een explosie veroorzaakt
 removeDead :: [Entity] -> [Entity]
-removeDead [] = []
-removeDead (e:es)
-    | health e <= 0 = removeDead es
-    | otherwise = e : removeDead es
+removeDead es = filter (\e -> health e > 0) es 
+-- removeDead [] = []
+-- removeDead (e:es)
+--     | health e <= 0 = removeDead es
+--     | otherwise = e : removeDead es
 
 
 
@@ -158,7 +162,7 @@ moveEntity e = e {hitbox = (Pt (x - dx) (y - f (x - dx)), s)}
 
 
 
--- split the list of enemies into a list of alive enemies and dead ones
+-- | Split the list of enemies into a list of alive enemies and dead ones
 splitEnemies :: [Enemy] -> [Enemy] -> [Enemy] -> ([Enemy], [Enemy]) -- maybe define new types to distinguish better what each list represents
 splitEnemies [] alive dead = (alive, dead)
 splitEnemies (e:es) alive dead
@@ -167,7 +171,7 @@ splitEnemies (e:es) alive dead
 
 
 spawner :: [TimerFreq] -> Float -> Score -> (Int, Int) -> Pos -> [(TimerFreq, Maybe Enemy)]
-spawner [] _ _ _ _ = []
+-- spawner [] _ _ _ _ = []
 -- spawner ((T name time freq):r) secs score screen@(xScreen, yScreen) p
 --     | time >= freq = ((T name 0 freq), Just enemy) : spawner r secs score screen p
 --     | otherwise = ((T name (time + secs) freq), Nothing) : spawner r secs score screen p
@@ -181,12 +185,13 @@ spawner timers secs score screen@(xScreen, yScreen) p = map (\(T name time freq)
       f x = 3 * sin (1/(10 * 2*pi) * x)
 
       getEntity :: String -> Entity
-      getEntity name = case name of
-        -- "Swarm" -> E Swarm 3 (p, swarmSize) Peashooter 5 (0, 0) (0, swarmRoF - (fromIntegral score/20)) [] -- als je dit doet krijg je dat ze ineens enorm vaak schieten, dan lijkt de hitbox niet meer te werken?
-        "Swarm" -> E Swarm 3 (p, swarmSize) Peashooter 5 (2, f) (0, swarmRoF) []
-        "Turret" -> E Turret 100000000 ((Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2))), turretSize) Peashooter 10 (2, f) (0, turretRoF) []
-        "Worm" -> E Worm 5 (p, wormSize) Peashooter 50 (2, f) (0, wormRoF) []
-        -- moet ik hier ook dingen als health en bonussen doen? vmg wel; -dmg
+      getEntity name
+          | score > 500 = E Boss 5 ((Pt 600 100), wormSize) Peashooter 50 (0, const 0) (0, wormRoF) [] -- misschien niet hier, maak aparte boss functie met aparte spawners enzo en waves gebaseerd op zn health. moet er maar eentje spawnen en dan niet andere enemies
+          | otherwise = case name of
+                  -- "Swarm" -> E Swarm 3 (p, swarmSize) Peashooter 5 (0, 0) (0, swarmRoF - (fromIntegral score/20)) [] -- als je dit doet krijg je dat ze ineens enorm vaak schieten, dan lijkt de hitbox niet meer te werken?
+                  "Swarm" -> E Swarm 3 (p, swarmSize) Peashooter 5 (2, f) (0, swarmRoF) []
+                  "Turret" -> E Turret 100000000 ((Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2))), turretSize) Peashooter 10 (2, f) (0, turretRoF) []
+                  "Worm" -> E Worm 5 (p, wormSize) Peashooter 50 (2, f) (0, wormRoF) []
         -- baseer het spawnen van de boss op de score, misschien een if then else gebruiken om alleen een boss te spawnen als de score zo hoog is en anders gewone enemies te spawnen.
 
 -- bossFight :: [] -> Score
@@ -231,9 +236,9 @@ hitboxOverlap ((Pt x1 y1), s1) ((Pt x2 y2), s2) =
 
 
 getBullet :: Weapon -> Pos -> Bullet
-getBullet Peashooter p = E Pea 1 (p, 10) None 5 (-4, const 0) (0, -1) []
-getBullet Launcher p = E Rocket 1 (p, 10) None 5 (-4, const 0) (0, -1) []
-getBullet Laser p = E Laserbeam 1 (p, 10) None 5 (-4, const 0) (0, -1) []       -- alter the way this works, meaning also having to alter bulletmovements
+getBullet Peashooter p = E Pea 1 (p, 5) None 5 (-8, const 0) (0, -1) []
+getBullet Launcher p = E Rocket 1 (p, 10) None 5 (-8, const 0) (0, -1) []
+getBullet Laser p = E Laserbeam 1 (p, 10) None 5 (0, const 0) (0, -1) []       -- alter the way this works, meaning also having to alter bulletmovements
 
 
 switchWeapon :: Weapon -> Weapon
