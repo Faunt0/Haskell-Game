@@ -38,7 +38,7 @@ step secs gstate
   | status gstate == Pause = return gstate {infoToShow = ShowAString "PAUSED" }
   | status gstate == GameOver = return gstate {infoToShow = ShowAString "GAME OVER"}
   | otherwise =
-  do 
+  do
     -- spawn new enemies
     screenSize <- getScreenSize
     let xScreen = fst screenSize
@@ -56,6 +56,7 @@ step secs gstate
     let newEnemies = catMaybes (snd res)
 
     -- check if any bullet hits an enemy and moves the bullet
+    -- make a central update player and central update entities function for as far as it goes
     let movedPlayer = movementHandler (S.toList (keys gstate)) screenSize (player gstate) -- move the player within the boundaries
 
 
@@ -68,25 +69,28 @@ step secs gstate
     -- Handle the entities except the player
     let movedEntities = map moveEntity (enemies gstate) -- move all the other entities except the player.
     let onScreenEntities = entityOffscreen movedEntities screenSize
-    
+
     let collisions = collissionCheck onScreenEntities updatedPlayer -- check if the enemies get shot and do the same for the player
 
     let splitEntitiesRes = splitEnemies (fst collisions) [] [] -- split the current enemies into the alive and dead ones -- maybe use this list to see if rockets are dead and need to spawn another explosion? or you could make an enemy which upon dying spawns a couple of other smaller enemies
-    let necroEntities = undefined -- new entities based on the dead bullets
-    
+
+    let somenoame = splitEnemies (bullets (snd collisions)) [] []
+    let updatedPlayer2 = (snd collisions) {bullets = fst somenoame} -- only keep the alive bullets
+    -- let explosions = necroSpawner (snd somenoame) -- moet ook spawnen voor sommige enemies niet alleen voor de dode rockets van de speler
+    -- let hitexp = hitExplosions (fst splitEntitiesRes ++ explosions) secs -- hit all the explosions with certain damage
     let updatedScore = score gstate + calcScore (snd splitEntitiesRes) -- tabulate the score based on the alive entities
 
-    let entityFireBts = unzip (map (enemyFire updatedPlayer secs) (fst splitEntitiesRes)) -- let the alive entities fire bullets and add them to the entities list
+    let entityFireBts = unzip (map (enemyFire updatedPlayer2 secs) (fst splitEntitiesRes)) -- let the alive entities fire bullets and add them to the entities list
 
 
 
     let statusUpdate = if health (snd collisions) <= 0 then GameOver else status gstate -- update the status based on the health of the player
 
     return (gstate { status = statusUpdate
-    , infoToShow = ShowANumber (health updatedPlayer)
+    , infoToShow = ShowANumber (round (health updatedPlayer2))
     , elapsedTime = elapsedTime gstate + secs
-    , player = snd collisions
-    , enemies = fst entityFireBts ++ flatten (snd entityFireBts) ++ newEnemies
+    , player = updatedPlayer2
+    , enemies = fst entityFireBts ++ flatten (snd entityFireBts) ++ newEnemies -- ++ hitexp ++ explosions
     , timer = newTimeFreq
     , score = updatedScore })
 
@@ -111,9 +115,9 @@ collissionCheck [] p = ([], p)
 collissionCheck enms@(e:es) p = (damageEnt2, damagePlayer {bullets = damagePlayerBullets})
     where
       damagePlayer = collisionDamage enms p -- damage the player takes from colliding with entities
-      damagePlayerBullets = map (collisionDamage enms) (bullets p)
-      damageEnt = map (collisionDamage (bullets p)) enms -- damage the entities take from bullets
-      damageEnt2 = map (collisionDamage [p]) damageEnt -- damage the entities take from the player
+      damagePlayerBullets = map (collisionDamage enms) (bullets p) -- damage the bullets from the player
+      damageEnt = map (collisionDamage (bullets p)) enms -- damage the entities take from bullets of the player
+      damageEnt2 = map (collisionDamage [p]) damageEnt -- damage the entities take from the player from colliding
 
 collisionDamage :: [Entity] -> Entity -> Entity
 collisionDamage [] e2 = e2
@@ -121,13 +125,37 @@ collisionDamage (e:es) e2
     | hitboxOverlap (hitbox e) (hitbox e2) = collisionDamage es (e2 {health = health e2 - damage e})
     | otherwise = collisionDamage es e2
 
+necroSpawner :: [Entity] -> [Entity]
+necroSpawner es = flatten (map (\e -> [E Explosion 5 (fst (hitbox e), 20) None 5 (0, const 0) (0, -1) [] | entityType e == Rocket]) es)
+
+hitExplosions :: [Entity] -> Float -> [Entity]
+hitExplosions [] _ = []
+hitExplosions (e:es) degration 
+    | entityType e == Explosion = e {health = health e - degration, hitbox = (fst (hitbox e), 20 - health e)} : hitExplosions es degration
+    | otherwise = e : hitExplosions es degration
+
 -- moet ik hier nog iets doen over dat een dode raket een explosie kan veroorzaken? of een kamikaze een explosie veroorzaakt
 removeDead :: [Entity] -> [Entity]
-removeDead es = filter (\e -> health e > 0) es 
+removeDead es = filter (\e -> health e > 0) es
+splitAliveDead :: [Entity] -> ([Entity], [Entity])
+splitAliveDead es = (alive, dead)
+    where
+      dead = filter (\e -> health e > 0) es
+      alive = filter (`notElem` dead) es
+-- removeDead es = [E Explosion 5 (fst (hitbox e), 20) None 5 (0, const 0) (0, -1) [] | e <- es, entityType e `elem` [Rocket] && health e < 0] -- spawn explosions if certain entities die
+
 -- removeDead [] = []
--- removeDead (e:es)
---     | health e <= 0 = removeDead es
+-- removeDead (e:es) -- = necro ++ removeDead es
+--     -- | health e <= 0 && entityType e `elem` [Rocket] = necro : removeDead es
+--     | health e <= 0 = necro ++ removeDead es
 --     | otherwise = e : removeDead es
+--     where
+--       (Pt x y) = fst (hitbox e)
+--       -- necro = [E Explosion 5 ((Pt x y), 20) None 5 (4, const 4) (0, -1) [] | entityType e `elem` [Rocket] && health e < 0]
+--       -- necro = E Explosion 5 ((Pt x y), 20) None 5 (0, const 0) (0, -1) []
+--       necro = if entityType e `elem` [Rocket] && health e <= 0
+--         then [E Explosion 5 ((Pt x y), 20) None 5 (0, const 0) (0, -1) []]
+--         else []
 
 
 
@@ -143,12 +171,12 @@ enemyFire player secs e
     (Pt xp yp) = fst (hitbox player)
     xdif = xp - xe
     ydif = yp - ye
-    c = sqrt(xdif ^ 2 + ydif^2)
+    c = sqrt (xdif ^ 2 + ydif^2)
     d@(dx, dy) = (-xdif * 4 / c, const (-ydif * 4 / c))
-    
+
     b = case entityType e of
         Swarm -> [E Pea 1 (ePos, 10) None 5 d (0, -1) []]
-        Worm -> [] 
+        Worm -> []
         Turret -> [E Pea 1 (ePos, 10) None 5 d (0, -1) [], E Pea 1 (ePos, 10) None 5 d (0, -1) []]
         Boss -> [E Rocket 1 (ePos, 10) None 5 d (0, -1) []]
         _ -> []
@@ -210,8 +238,6 @@ calcScore (e:es)
               Boss -> 50
               _ -> 0
 
-
-
 movementHandler :: [Char] -> (Int, Int) -> Player -> Player
 movementHandler [] s p = p
 movementHandler (c:chars) s@(xScreen, yScreen) p = movementHandler chars s newPlayer
@@ -228,8 +254,8 @@ movementHandler (c:chars) s@(xScreen, yScreen) p = movementHandler chars s newPl
 
 -- misschien size een (Float, Float) maken zodat je ook rechthoeken/balken kunt hebben
 hitboxOverlap :: HitBox -> HitBox -> Bool
-hitboxOverlap ((Pt x1 y1), s1) ((Pt x2 y2), s2) = 
-  x1 < x2 + s2 && 
+hitboxOverlap ((Pt x1 y1), s1) ((Pt x2 y2), s2) =
+  x1 < x2 + s2 &&
   y1 < y2 + s2 &&
   x2 < x1 + s1 &&
   y2 < y1 + s1
@@ -253,7 +279,7 @@ input e gstate = return (inputKey e gstate)
 
 -- | Handle movements which can be held
 inputKey :: Event -> GameState -> GameState
-inputKey (EventKey (Char c) Down _ _) gstate 
+inputKey (EventKey (Char c) Down _ _) gstate
   | c == 'w' || c=='a' || c=='s' || c=='d' = gstate {keys = S.insert c (keys gstate)}
   -- | otherwise = gstate
 inputKey (EventKey (Char c) Up _ _) gstate = gstate {keys = S.delete c (keys gstate)}

@@ -15,10 +15,10 @@ data InfoToShow = ShowNothing
 data TimerFreq = T String Time Freq
 type Time = Float
 type Freq = Float
-type Damage = Int
+type Damage = Float
 
 type Score = Int
-type Health = Int
+type Health = Float
 type Formula = Float -> Float -- this can be useful for making the directions more complex
 type Direction = (Float, Formula) 
 type Size = Float
@@ -37,7 +37,7 @@ data Entity = E {
       direction :: Direction,
       rate :: (Time, Freq),
       bullets :: [Bullet] -- dit is niet nodig, als ik dit weg haal moeten we nadenken over of je kogels uit de lucht wil kunnen schieten
-} --deriving Eq
+} deriving Eq
 
 data EntityTypes = Player | Worm | Swarm | Turret | Boss | Pea | Rocket | Laserbeam | Grenade | Explosion deriving Eq
 data Weapon = None | Peashooter | Launcher | Laser deriving Eq

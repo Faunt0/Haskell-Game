@@ -33,21 +33,22 @@ pics (x1:xs1) gstate
 
 entityPics :: [Entity] -> [Picture]
 entityPics [] = []
-entityPics (entity:es) = pic : entityPics es
+entityPics (entity:es) = Translate x y pic : entityPics es
     where 
       s = snd (hitbox entity)
       (Pt x y) = fst (hitbox entity)
       pic = case entityType entity of
             -- enemies
-            Swarm -> Translate x y (color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
-            Turret -> Translate x y (color blue (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
-            Worm -> Translate x y (color yellow (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
-            Boss -> Translate x y (color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
+            Swarm -> (color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
+            Turret -> (color blue (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
+            Worm -> (color yellow (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
+            Boss -> (color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)]))
             -- bullets
-            Pea -> Translate x y (color blue (Circle s))
-            Rocket -> Translate x y (color yellow (Circle s))
-            Laserbeam -> Translate x y (color cyan (Line [(0, 0), (s, 0)]))
+            Pea -> (color blue (Circle s))
+            Rocket -> (color yellow (Circle s))
+            Laserbeam -> (color cyan (Line [(0, 0), (s, 0)]))
             -- _ -> Blank -- is this necessary?
+            Explosion -> color azure (Circle s)
 
             
 viewScore :: GameState -> Picture
