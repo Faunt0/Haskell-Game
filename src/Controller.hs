@@ -77,10 +77,10 @@ step secs gstate
     let somenoame = splitEntities (bullets (snd collisions)) [] []
     let updatedPlayer2 = (snd collisions) {bullets = fst somenoame} -- only keep the alive bullets
     let explosions = necroSpawner (snd somenoame) -- moet ook spawnen voor sommige enemies niet alleen voor de dode rockets van de speler
-    let hitexp = hitExplosions2 (filter (\e -> entityType e == Explosion) (fst splitEntitiesRes)) 1 -- hit all the explosions with certain damage
+    let hitexp = hitExplosions2 (fst splitEntitiesRes) secs -- hit all the explosions with certain damage
     let updatedScore = score gstate + calcScore (snd splitEntitiesRes) -- tabulate the score based on the alive entities
 
-    let entityFireBts = unzip (map (enemyFire updatedPlayer2 secs) (fst splitEntitiesRes)) -- let the alive entities fire bullets and add them to the entities list
+    let entityFireBts = unzip (map (enemyFire updatedPlayer2 secs) hitexp) -- let the alive entities fire bullets and add them to the entities list
 
 
 
@@ -90,7 +90,7 @@ step secs gstate
     , infoToShow = ShowANumber (round (health updatedPlayer2))
     , elapsedTime = elapsedTime gstate + secs
     , player = updatedPlayer2
-    , enemies = fst entityFireBts ++ flatten (snd entityFireBts) ++ newEnemies ++ explosions ++ hitexp
+    , enemies = fst entityFireBts ++ flatten (snd entityFireBts) ++ newEnemies ++ explosions
     , timer = newTimeFreq
     , score = updatedScore })
 
@@ -129,7 +129,10 @@ necroSpawner :: [Entity] -> [Entity]
 necroSpawner es = flatten (map (\e -> [E Explosion 5 (fst (hitbox e), 20) None 5 (0, const 0) (0, -1) [] | entityType e == Rocket]) es)
 
 hitExplosions2 :: [Entity] -> Float -> [Entity]
-hitExplosions2 es degration = map (\e -> e {health = health e - degration, hitbox = (fst (hitbox e), 15 + health e)}) es
+hitExplosions2 es degration = other ++ map (\e -> e {health = health e - degration, hitbox = (fst (hitbox e), 15 + health e)}) explosions
+    where
+      explosions = filter (\e -> entityType e == Explosion) es
+      other = filter (\e -> entityType e /= Explosion) es
 
 -- hitExplosions2 :: [Entity] -> Float -> [Entity]
 -- hitExplosions2 es degration = map (\e -> e {health = health e - degration, hitbox = 20 - health e}) es
