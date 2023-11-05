@@ -72,12 +72,12 @@ step secs gstate
 
     let collisions = collissionCheck onScreenEntities updatedPlayer -- check if the enemies get shot and do the same for the player
 
-    let splitEntitiesRes = splitEnemies (fst collisions) [] [] -- split the current enemies into the alive and dead ones -- maybe use this list to see if rockets are dead and need to spawn another explosion? or you could make an enemy which upon dying spawns a couple of other smaller enemies
+    let splitEntitiesRes = splitEntities (fst collisions) [] [] -- split the current enemies into the alive and dead ones -- maybe use this list to see if rockets are dead and need to spawn another explosion? or you could make an enemy which upon dying spawns a couple of other smaller enemies
 
-    let somenoame = splitEnemies (bullets (snd collisions)) [] []
+    let somenoame = splitEntities (bullets (snd collisions)) [] []
     let updatedPlayer2 = (snd collisions) {bullets = fst somenoame} -- only keep the alive bullets
-    -- let explosions = necroSpawner (snd somenoame) -- moet ook spawnen voor sommige enemies niet alleen voor de dode rockets van de speler
-    -- let hitexp = hitExplosions (fst splitEntitiesRes ++ explosions) secs -- hit all the explosions with certain damage
+    let explosions = necroSpawner (snd somenoame) -- moet ook spawnen voor sommige enemies niet alleen voor de dode rockets van de speler
+    let hitexp = hitExplosions2 (filter (\e -> entityType e == Explosion) (fst splitEntitiesRes)) 1 -- hit all the explosions with certain damage
     let updatedScore = score gstate + calcScore (snd splitEntitiesRes) -- tabulate the score based on the alive entities
 
     let entityFireBts = unzip (map (enemyFire updatedPlayer2 secs) (fst splitEntitiesRes)) -- let the alive entities fire bullets and add them to the entities list
@@ -90,7 +90,7 @@ step secs gstate
     , infoToShow = ShowANumber (round (health updatedPlayer2))
     , elapsedTime = elapsedTime gstate + secs
     , player = updatedPlayer2
-    , enemies = fst entityFireBts ++ flatten (snd entityFireBts) ++ newEnemies -- ++ hitexp ++ explosions
+    , enemies = fst entityFireBts ++ flatten (snd entityFireBts) ++ newEnemies ++ explosions ++ hitexp
     , timer = newTimeFreq
     , score = updatedScore })
 
@@ -128,21 +128,32 @@ collisionDamage (e:es) e2
 necroSpawner :: [Entity] -> [Entity]
 necroSpawner es = flatten (map (\e -> [E Explosion 5 (fst (hitbox e), 20) None 5 (0, const 0) (0, -1) [] | entityType e == Rocket]) es)
 
-hitExplosions :: [Entity] -> Float -> [Entity]
-hitExplosions [] _ = []
-hitExplosions (e:es) degration
-    | entityType e == Explosion = e {health = health e - degration, hitbox = (fst (hitbox e), 20 - health e)} : hitExplosions es degration
-    | otherwise = e : hitExplosions es degration
+hitExplosions2 :: [Entity] -> Float -> [Entity]
+hitExplosions2 es degration = map (\e -> e {health = health e - degration, hitbox = (fst (hitbox e), 15 + health e)}) es
+
+-- hitExplosions2 :: [Entity] -> Float -> [Entity]
+-- hitExplosions2 es degration = map (\e -> e {health = health e - degration, hitbox = 20 - health e}) es
+
+
+-- hitExplosions :: [Entity] -> Float -> [Entity] -- kan in een regel
+-- hitExplosions [] _ = []
+-- hitExplosions (e:es) degration
+--     | entityType e == Explosion = e {health = health e - degration, hitbox = (fst (hitbox e), 20 - health e)} : hitExplosions es degration
+--     | otherwise = hitExplosions es degration
 
 -- moet ik hier nog iets doen over dat een dode raket een explosie kan veroorzaken? of een kamikaze een explosie veroorzaakt
 removeDead :: [Entity] -> [Entity]
 removeDead es = filter (\e -> health e > 0) es
 
--- splitAliveDead :: [Entity] -> ([Entity], [Entity])
--- splitAliveDead es = (alive, dead)
---     where
---       dead = filter (\e -> health e > 0) es
---       alive = filter (`notElem` dead) es
+
+-- bit more intuitive than the other splitEntities function
+splitAliveDead :: [Entity] -> ([Entity], [Entity])
+splitAliveDead es = (alive, dead)
+    where
+      dead = filter (\e -> health e <= 0) es
+      alive = filter (\e -> health e > 0) es
+
+-- is this possible?
 -- removeDead es = [E Explosion 5 (fst (hitbox e), 20) None 5 (0, const 0) (0, -1) [] | e <- es, entityType e `elem` [Rocket] && health e < 0] -- spawn explosions if certain entities die
 
 -- removeDead [] = []
@@ -192,11 +203,11 @@ moveEntity e = e {hitbox = (Pt (x - dx) (y - f (x - dx)), s)}
 
 
 -- | Split the list of enemies into a list of alive enemies and dead ones
-splitEnemies :: [Enemy] -> [Enemy] -> [Enemy] -> ([Enemy], [Enemy]) -- maybe define new types to distinguish better what each list represents
-splitEnemies [] alive dead = (alive, dead)
-splitEnemies (e:es) alive dead
-    | health e <= 0 = splitEnemies es alive (e:dead)
-    | otherwise = splitEnemies es (e:alive) dead
+splitEntities :: [Enemy] -> [Enemy] -> [Enemy] -> ([Enemy], [Enemy]) -- maybe define new types to distinguish better what each list represents
+splitEntities [] alive dead = (alive, dead)
+splitEntities (e:es) alive dead
+    | health e <= 0 = splitEntities es alive (e:dead)
+    | otherwise = splitEntities es (e:alive) dead
 
 
 spawner :: [TimerFreq] -> Float -> Score -> (Int, Int) -> Pos -> [(TimerFreq, Maybe Enemy)]
@@ -265,7 +276,7 @@ hitboxOverlap ((Pt x1 y1), s1) ((Pt x2 y2), s2) =
 getBullet :: Weapon -> Pos -> Bullet
 getBullet Peashooter p = E Pea 1 (p, 5) None 5 (-8, const 0) (0, -1) []
 getBullet Launcher p = E Rocket 1 (p, 10) None 5 (-8, const 0) (0, -1) []
-getBullet Laser p = E Laserbeam 1 (p, 10) None 5 (0, const 0) (0, -1) []       -- alter the way this works, meaning also having to alter bulletmovements
+getBullet Laser p = E Laserbeam 1 (p, 10) None 5 (-8, const 0) (0, -1) []       -- alter the way this works, meaning also having to alter bulletmovements
 
 
 switchWeapon :: Weapon -> Weapon
