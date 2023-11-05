@@ -43,7 +43,7 @@ step secs gstate
     screenSize <- getScreenSize
     let xScreen = fst screenSize
     let yScreen = snd screenSize
-    let margin = 50
+    let margin = 0
 
     random1 <- randomRIO (1, 5) :: IO Int
     random2 <- randomRIO (- fromIntegral yScreen + margin, fromIntegral yScreen - margin) :: IO Float
@@ -51,7 +51,7 @@ step secs gstate
 
 
     -- Spawner
-    let res = unzip (spawner (timer gstate) secs (score gstate) screenSize (Pt (fromIntegral (xScreen `div` 2) - 100) randomY))
+    let res = unzip (spawner (timer gstate) secs (score gstate) screenSize (Pt (fromIntegral (xScreen `div` 2) - margin) randomY))
     let newTimeFreq = fst res
     let newEnemies = catMaybes (snd res)
 
@@ -224,7 +224,7 @@ spawner timers secs score screen@(xScreen, yScreen) p = map (\(T name time freq)
           | otherwise = case name of
                   -- "Swarm" -> E Swarm 3 (p, swarmSize) Peashooter 5 (0, 0) (0, swarmRoF - (fromIntegral score/20)) [] -- als je dit doet krijg je dat ze ineens enorm vaak schieten, dan lijkt de hitbox niet meer te werken?
                   "Swarm" -> E Swarm 3 (p, swarmSize) Peashooter 5 (2, f) (0, swarmRoF) []
-                  "Turret" -> E Turret 100000000 ((Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2))), turretSize) Peashooter 10 (2, f) (0, turretRoF) []
+                  "Turret" -> E Turret 100000000 ((Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2))), turretSize) Peashooter 10 (2, const 0) (0, turretRoF) []
                   "Worm" -> E Worm 5 (p, wormSize) Peashooter 50 (2, f) (0, wormRoF) []
         -- baseer het spawnen van de boss op de score, misschien een if then else gebruiken om alleen een boss te spawnen als de score zo hoog is en anders gewone enemies te spawnen.
 

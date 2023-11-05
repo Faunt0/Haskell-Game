@@ -14,5 +14,5 @@ entityOffscreen (e:bts) (x, y)
       (Pt ex ey) = fst (hitbox e)
       margin = 0
       isbullet = elem (entityType e) [Pea, Rocket, Laserbeam, Grenade]
-      offscreen_Xaxis = ex >= fromIntegral (x `div` 2) - margin || ex <= - fromIntegral (x `div` 2) + margin
-      offscreen_Yaxis = ey >= fromIntegral (y `div` 2) - margin || ey <= - fromIntegral (y `div` 2) + margin
+      offscreen_Xaxis = ex >= fromIntegral (x `div` 2) + 100 - margin || ex <= - fromIntegral (x `div` 2) + margin
+      offscreen_Yaxis = False --ey >= fromIntegral (y `div` 2) - margin || ey <= - fromIntegral (y `div` 2) + margin

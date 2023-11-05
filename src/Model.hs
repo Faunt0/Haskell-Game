@@ -63,6 +63,6 @@ initialPlayer = E Player 100 ((Pt 0 0), 10) Peashooter 50 (0, const 0) (0, 0.5) 
 
 
 spawnRate :: [TimerFreq] -- kan niet in de enemy zelf omdat die niet nieuwe enimies kan spawnen
-spawnRate = [T "Swarm" 0 1, T "Worm" 0 5, T "Turret" 0 6] -- spawnrates of the different enemies, this can be adjusted based on the score.
+spawnRate = [T "Swarm" 0 0.5, T "Worm" 0 5, T "Turret" 0 3] -- spawnrates of the different enemies, this can be adjusted based on the score.
 
 
