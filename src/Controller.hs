@@ -130,18 +130,19 @@ necroSpawner es = flatten (map (\e -> [E Explosion 5 (fst (hitbox e), 20) None 5
 
 hitExplosions :: [Entity] -> Float -> [Entity]
 hitExplosions [] _ = []
-hitExplosions (e:es) degration 
+hitExplosions (e:es) degration
     | entityType e == Explosion = e {health = health e - degration, hitbox = (fst (hitbox e), 20 - health e)} : hitExplosions es degration
     | otherwise = e : hitExplosions es degration
 
 -- moet ik hier nog iets doen over dat een dode raket een explosie kan veroorzaken? of een kamikaze een explosie veroorzaakt
 removeDead :: [Entity] -> [Entity]
 removeDead es = filter (\e -> health e > 0) es
-splitAliveDead :: [Entity] -> ([Entity], [Entity])
-splitAliveDead es = (alive, dead)
-    where
-      dead = filter (\e -> health e > 0) es
-      alive = filter (`notElem` dead) es
+
+-- splitAliveDead :: [Entity] -> ([Entity], [Entity])
+-- splitAliveDead es = (alive, dead)
+--     where
+--       dead = filter (\e -> health e > 0) es
+--       alive = filter (`notElem` dead) es
 -- removeDead es = [E Explosion 5 (fst (hitbox e), 20) None 5 (0, const 0) (0, -1) [] | e <- es, entityType e `elem` [Rocket] && health e < 0] -- spawn explosions if certain entities die
 
 -- removeDead [] = []

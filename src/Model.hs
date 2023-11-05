@@ -37,7 +37,7 @@ data Entity = E {
       direction :: Direction,
       rate :: (Time, Freq),
       bullets :: [Bullet] -- dit is niet nodig, als ik dit weg haal moeten we nadenken over of je kogels uit de lucht wil kunnen schieten
-} deriving Eq
+} --deriving Eq
 
 data EntityTypes = Player | Worm | Swarm | Turret | Boss | Pea | Rocket | Laserbeam | Grenade | Explosion deriving Eq
 data Weapon = None | Peashooter | Launcher | Laser deriving Eq
