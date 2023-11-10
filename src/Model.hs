@@ -6,7 +6,7 @@
 module Model where
 -- import qualified Data.Set as S (Set, insert, delete, empty)
 import qualified Data.Set as S hiding (map, filter)
-
+import qualified Data.ByteString.Lazy as B (readFile, writeFile)
 import GHC.Generics
 import Data.Aeson
 import GameMechanics
@@ -21,7 +21,7 @@ data GameState = GameState {
                    enemies :: [Entity],
                    score :: Score,
                    elapsedTime :: Float -- heb het eigenlijk niet nodig
-                 } deriving (Show, Generic)
+                 } deriving (Generic, Show)
 
 -- let op dat je hier dingen globaal definieert
 initialState :: GameState
@@ -36,9 +36,9 @@ spawnRate = [T "Swarm" 0 0.5, T "Worm" 0 5, T "Turret" 0 3] -- spawnrates of the
 data InfoToShow = ShowNothing
                 | ShowANumber Int
                 | ShowAChar   Char
-                | ShowAString String deriving (Show)
+                | ShowAString String deriving (Generic, Show)
 
-data TimerFreq = T String Time Freq deriving (Show, Eq)
+data TimerFreq = T String Time Freq deriving (Generic, Show, Eq)
 type Time = Float
 type Freq = Float
 type Damage = Float
@@ -49,7 +49,7 @@ type Health = Float
 -- type Direction = (Float, Formula)
 type Direction = (Float, Float) 
 type Size = Float
-data Pos = Pt Float Float deriving (Show, Eq)
+data Pos = Pt Float Float deriving (Generic, Show, Eq)
 type HitBox = (Pos, Size) 
 
 type Player = Entity
@@ -64,20 +64,36 @@ data Entity = E {
       direction :: Direction,
       rate :: (Time, Freq),
       bullets :: [Bullet] -- dit is niet nodig, als ik dit weg haal moeten we nadenken over of je kogels uit de lucht wil kunnen schieten
-} deriving (Show, Generic)
+} deriving (Generic, Show)
 
-data EntityTypes = Player | Worm | Swarm | Turret | Boss | Pea | Rocket | Laserbeam | Grenade | Explosion deriving (Show, Eq)
-data Weapon = None | Peashooter | Launcher | Laser deriving Show
-data Status = StartScreen | Game | Pause | GameOver deriving (Show, Eq)
+data EntityTypes = Player | Worm | Swarm | Turret | Boss | Pea | Rocket | Laserbeam | Grenade | Explosion deriving (Generic, Show, Eq)
+data Weapon = None | Peashooter | Launcher | Laser deriving (Generic, Show)
+data Status = StartScreen | Game | Pause | GameOver deriving (Generic, Show, Eq)
 
 
---instance ToJSON GameState where
-    -- No need to provide a toJSON implementation.
+instance ToJSON GameState
+instance ToJSON Entity
+instance ToJSON Status
+instance ToJSON Weapon
+instance ToJSON EntityTypes
+instance ToJSON Pos
+instance ToJSON InfoToShow
+instance ToJSON TimerFreq
+instance FromJSON GameState
+instance FromJSON Entity
+instance FromJSON Status
+instance FromJSON Weapon
+instance FromJSON EntityTypes
+instance FromJSON Pos
+instance FromJSON InfoToShow
+instance FromJSON TimerFreq
 
-    -- For efficiency, we write a simple toEncoding implementation, as
-    -- the default version uses toJSON.
-    -- toEncoding = genericToEncoding defaultOptions
 
---instance FromJSON GameState
-    -- No need to provide a parseJSON implementation.
-
+writeGameState :: FilePath -> GameState -> IO () -- haal de filenamen
+writeGameState filePath gameState = do
+  let json = encode gameState
+  B.writeFile filePath json
+readGameState :: FilePath -> IO (Maybe GameState)
+readGameState filePath = do
+  fileContents <- B.readFile filePath
+  return (decode fileContents)

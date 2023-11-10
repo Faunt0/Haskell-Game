@@ -16,16 +16,25 @@ import GameMechanics
 
 
 -- TODOS
+-- achtergrond elementen
+-- comments
+-- pas gamemechanics aan
+-- tweede gamedesign doc aanmaken
+-- save file laden
+-- startscherm maken -- bitmaps
+-- turret bitmap zoeken?
+-- code opschonen
+-- tutorial schermpje
+
 -- maybe make more packages to have a cleaner file
--- collision damage
 -- Misschien een sniper maken of burst in meerdere richtingen
 -- boosts/health maken
 -- artwork
 -- background elements
--- misschien werken met ammo en reload systemen zodat je niet gewoon je knoppen kunt blijven spammen?
--- misschien iets met dat je een moederschip moet beschermen wat damage krijgt van collissions met enemies
--- misschien enemies die stil staan op gegeven momenten en gewoon schieten
--- misschien een soort backup players die achter de Player schieten.
+-- werken met ammo en reload systemen zodat je niet gewoon je knoppen kunt blijven spammen?
+-- iets met dat je een moederschip moet beschermen wat damage krijgt van collissions met enemies
+-- enemies die stil staan op gegeven momenten en gewoon schieten
+-- een soort backup players die achter de Player schieten.
 -- dodge roll met i-frames
 
 
@@ -36,7 +45,7 @@ import GameMechanics
 step :: Float -> GameState -> IO GameState
 step secs gstate
   | status gstate == StartScreen = return gstate {infoToShow = ShowAString "START MENU"}
-  | status gstate == Pause = return gstate {infoToShow = ShowAString (show secs)}
+  | status gstate == Pause = return gstate {infoToShow = ShowAString "PAUSE"}
   | status gstate == GameOver = return gstate {infoToShow = ShowAString "GAME OVER"}
   | otherwise =
   do
@@ -283,22 +292,22 @@ switchWeapon Laser = Peashooter
 
 -- | Handle user input
 input :: Event -> GameState -> IO GameState
-input e gstate = return (inputKey e gstate)
+input e gstate = inputKey e gstate
 
 -- | Handle movements which can be held
-inputKey :: Event -> GameState -> GameState
+inputKey :: Event -> GameState -> IO GameState
 inputKey (EventKey (Char c) Down _ _) gstate
-  | c == 'w' || c=='a' || c=='s' || c=='d' = gstate {keys = S.insert c (keys gstate)}
+  | c == 'w' || c=='a' || c=='s' || c=='d' = return gstate {keys = S.insert c (keys gstate)}
   -- | otherwise = gstate
-inputKey (EventKey (Char c) Up _ _) gstate = gstate {keys = S.delete c (keys gstate)}
+inputKey (EventKey (Char c) Up _ _) gstate = return gstate {keys = S.delete c (keys gstate)}
 
 -- | Shoot bullets!
-inputKey (EventKey (SpecialKey KeySpace) Down _ _) gstate = gstate { keys = S.insert '.' (keys gstate)}
-inputKey (EventKey (SpecialKey KeySpace) Up _ _) gstate = gstate { keys = S.delete '.' (keys gstate)}
+inputKey (EventKey (SpecialKey KeySpace) Down _ _) gstate = return gstate { keys = S.insert '.' (keys gstate)}
+inputKey (EventKey (SpecialKey KeySpace) Up _ _) gstate = return gstate { keys = S.delete '.' (keys gstate)}
 
 -- | Switch weapon when possible
 inputKey (EventKey (SpecialKey KeyTab) Down _ _) gstate
-  = gstate { infoToShow = ShowAString "SW", player = (player gstate) {weapon = newWe, rate = (0, newF)} }
+  = return gstate { infoToShow = ShowAString "SW", player = (player gstate) {weapon = newWe, rate = (0, newF)} }
     where
       (E et health hb we dmg dir (t, f) b) = player gstate
       newWe = switchWeapon we
@@ -307,7 +316,17 @@ inputKey (EventKey (SpecialKey KeyTab) Down _ _) gstate
         Launcher -> 1
         Laser -> 0.1
 
-inputKey (EventKey (Char 'p') Down _ _) gstate = if status gstate == Pause then gstate {status = Game} else gstate {status = Pause}
-inputKey (EventKey (Char 'r') _ _ _) gstate = initialState -- restart
+inputKey (EventKey (Char 'p') Down _ _) gstate = if status gstate == Pause then return gstate {status = Game} else return gstate {status = Pause}
+inputKey (EventKey (Char 'r') _ _ _) gstate = return initialState -- restart, this should only happen when the status is gameover, Maybe also a clickable button like the save
+-- als de muis binnen het vierkant van de "save" knop geklikt word
+-- inputKey (EventKey (MouseButton LeftButton) Down _ (x, y)) gstate = 
+--     if status gstate == Pause && hitboxOverlap (Pt x y, 1) (Pt (-200) (-100), 50)
+inputKey (EventKey (Char 'l') Down _ _) gstate = 
+    if status gstate == Pause
+    then do 
+      writeGameState "saveFiles/save1.json" gstate
+      putStrLn "SAVING YOUR GAME MAN"
+      return gstate {infoToShow = ShowAString "SAVING"}
+    else return gstate
 inputKey (EventKey (SpecialKey KeyEsc) _ _ _) gstate = error "Game exited"
-inputKey _ gstate = gstate -- Otherwise keep the same
+inputKey _ gstate = return gstate -- Otherwise keep the same
