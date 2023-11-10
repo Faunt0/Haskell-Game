@@ -39,7 +39,7 @@ entityPics (entity:es) picturemap= Translate x y pic : entityPics es picturemap
       (Pt x y) = fst (hitbox entity)
       pic = case entityType entity of
             -- enemies
-            Swarm -> color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)])
+            Swarm -> picturemap ! "swarm"
             Turret -> color blue (Polygon [(0, 0), (s, 0), (s, s), (0, s)])
             Worm -> color yellow (Polygon [(0, 0), (s, 0), (s, s), (0, s)])
             Boss -> color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)])
