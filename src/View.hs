@@ -5,6 +5,7 @@ import Data.Map
 import Graphics.Gloss
 import Model
 import Controller
+import GameMechanics
 
 view :: Map String Picture -> GameState -> IO Picture
 view p gstate= return (pics p gstate)
@@ -52,12 +53,12 @@ entityPics (entity:es) picturemap= Translate x y pic : entityPics es picturemap
       
 
 explosionstate :: Float -> Map String Picture -> Picture
-explosionstate health picturemap| health >= 21*(1/60) = picturemap ! "frame1"
-                                | health >= 18*(1/60) = picturemap ! "frame2"
-                                | health >= 15*(1/60) = picturemap ! "frame3"
-                                | health >= 12*(1/60) = picturemap ! "frame4"
-                                | health >= 9*(1/60) = picturemap ! "frame5"
-                                | health >= 6*(1/60) = picturemap ! "frame6"
+explosionstate health picturemap| health >= 21*(1/fromIntegral fps) = picturemap ! "frame1"
+                                | health >= 18*(1/fromIntegral fps) = picturemap ! "frame2"
+                                | health >= 15*(1/fromIntegral fps) = picturemap ! "frame3"
+                                | health >= 12*(1/fromIntegral fps) = picturemap ! "frame4"
+                                | health >= 9*(1/fromIntegral fps) = picturemap ! "frame5"
+                                | health >= 6*(1/fromIntegral fps) = picturemap ! "frame6"
                                 | otherwise = picturemap ! "frame7"
 
 viewScore :: GameState -> Picture

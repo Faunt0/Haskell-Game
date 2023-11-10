@@ -3,6 +3,7 @@ import Data.Map
 import Controller
 import Model
 import View
+import GameMechanics
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
 
@@ -20,7 +21,7 @@ main = do
     --splosieframes <- mapM loadBMP ["splosieframes/splosieframe1.bmp","splosieframes/splosieframe2.bmp"]
     Graphics.Gloss.Interface.IO.Game.playIO Graphics.Gloss.Interface.IO.Game.FullScreen
               Graphics.Gloss.Interface.IO.Game.black            -- Background color
-              60               -- Frames per second
+              fps               -- Frames per second
               initialState     -- Initial state
               (view (Data.Map.fromList ([("ship",s),("pea",pea),("swarm", swarm),("worm", worm)]++splosions2)))          -- View function
               input            -- Event function

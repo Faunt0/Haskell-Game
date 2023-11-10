@@ -1,6 +1,7 @@
 module GameMechanics where
 
-
+fps :: Int
+fps = 60 
 -- plaats om alle variabelen te dumpen
 -- dit is een prima manier, dit is de b van y = ax + b wat handig is voor aanpassen als de score hoger wordt aangezien ik dan gewoon de formule kan intypen in de methode
 peashooterRate :: Float
