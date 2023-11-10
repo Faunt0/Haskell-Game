@@ -26,6 +26,7 @@ import GameMechanics
 -- misschien iets met dat je een moederschip moet beschermen wat damage krijgt van collissions met enemies
 -- misschien enemies die stil staan op gegeven momenten en gewoon schieten
 -- misschien een soort backup players die achter de Player schieten.
+-- dodge roll met i-frames
 
 
 -- | Handle one iteration of the game
@@ -94,6 +95,8 @@ step secs gstate
     , timer = newTimeFreq
     , score = updatedScore })
 
+
+-- kan dit met een foldr
 flatten :: [[a]] -> [a]
 flatten [] = []
 flatten [a] = a
@@ -126,7 +129,7 @@ collisionDamage (e:es) e2
     | otherwise = collisionDamage es e2
 
 necroSpawner :: [Entity] -> [Entity]
-necroSpawner es = flatten (map (\e -> [E Explosion 5 (fst (hitbox e), 20) None 5 (0, const 0) (0, -1) [] | entityType e == Rocket]) es)
+necroSpawner es = flatten (map (\e -> [E Explosion 5 (fst (hitbox e), 20) None 5 (0, 0) (0, -1) [] | entityType e == Rocket]) es)
 
 hitExplosions2 :: [Entity] -> Float -> [Entity]
 hitExplosions2 es dmg = other ++ map (\e -> e {health = health e - dmg, hitbox = (fst (hitbox e), 4 * health e)}) explosions
@@ -178,7 +181,7 @@ enemyFire player secs e
     xdif = xp - xe
     ydif = yp - ye
     c = sqrt (xdif ^ 2 + ydif^2)
-    d@(dx, dy) = (-xdif * 4 / c, const (-ydif * 4 / c))
+    d@(dx, dy) = (-xdif * 4 / c, -ydif * 4 / c)
 
     b = case entityType e of
         Swarm -> [E Pea 1 (ePos, 10) None 5 d (0, -1) []]
@@ -189,10 +192,11 @@ enemyFire player secs e
 
 
 moveEntity :: Entity -> Entity
-moveEntity e = e {hitbox = (Pt (x - dx) (y - f (x - dx)), s)}
+moveEntity e = e {hitbox = (newPt, s)}
     where
         ((Pt x y), s)= hitbox e
-        (dx, f) = direction e
+        (dx, dy) = direction e
+        newPt = if entityType e `elem` [Swarm, Worm] then Pt (x - dx) (y - f (x - dx)) else Pt (x - dx) (y - dy) -- use the function defined in the gamemechanics for the swarms
 
 
 
@@ -209,23 +213,21 @@ spawner :: [TimerFreq] -> Float -> Score -> (Int, Int) -> Pos -> [(TimerFreq, Ma
 -- spawner ((T name time freq):r) secs score screen@(xScreen, yScreen) p
 --     | time >= freq = ((T name 0 freq), Just enemy) : spawner r secs score screen p
 --     | otherwise = ((T name (time + secs) freq), Nothing) : spawner r secs score screen p
-spawner timers secs score screen@(xScreen, yScreen) p = map (\(T name time freq) -> if time >= freq then (T name 0 (alterFreq freq score), Just (getEntity name)) else (T name (time + secs) freq, Nothing)) timers
+spawner timers secs score (xScreen, yScreen) p = map (\(T name time freq) -> if time >= freq then (T name 0 (alterFreq freq score), Just (getEntity name)) else (T name (time + secs) freq, Nothing)) timers
     where
       alterFreq :: Freq -> Score -> Freq
       alterFreq freq s = freq
       -- alterFreq freq s = freq / (freq + fromIntegral s) -- base the spawnrates on the score
 
-      f :: Float -> Float
-      f x = 3 * sin (1/(10 * 2*pi) * x)
 
       getEntity :: String -> Entity
       getEntity name
-          | score > 500 = E Boss 5 ((Pt 600 100), wormSize) Peashooter 50 (0, const 0) (0, wormRoF) [] -- misschien niet hier, maak aparte boss functie met aparte spawners enzo en waves gebaseerd op zn health. moet er maar eentje spawnen en dan niet andere enemies
+          | score > 500 = E Boss 5 ((Pt 600 100), wormSize) Peashooter 50 (0, 0) (0, wormRoF) [] -- misschien niet hier, maak aparte boss functie met aparte spawners enzo en waves gebaseerd op zn health. moet er maar eentje spawnen en dan niet andere enemies
           | otherwise = case name of
                   -- "Swarm" -> E Swarm 3 (p, swarmSize) Peashooter 5 (0, 0) (0, swarmRoF - (fromIntegral score/20)) [] -- als je dit doet krijg je dat ze ineens enorm vaak schieten, dan lijkt de hitbox niet meer te werken?
-                  "Swarm" -> E Swarm 3 (p, swarmSize) Peashooter 5 (2, f) (0, swarmRoF) []
-                  "Turret" -> E Turret 100000000 ((Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2))), turretSize) Peashooter 10 (2, const 0) (0, turretRoF) []
-                  "Worm" -> E Worm 5 (p, wormSize) Peashooter 50 (2, f) (0, wormRoF) []
+                  "Swarm" -> E Swarm 3 (p, swarmSize) Peashooter 5 (2, 0) (0, swarmRoF) []
+                  "Turret" -> E Turret 100000000 ((Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2))), turretSize) Peashooter 10 (2, 0) (0, turretRoF) []
+                  "Worm" -> E Worm 5 (p, wormSize) Peashooter 50 (2, 0) (0, wormRoF) []
         -- baseer het spawnen van de boss op de score, misschien een if then else gebruiken om alleen een boss te spawnen als de score zo hoog is en anders gewone enemies te spawnen.
 
 -- bossFight :: [] -> Score
@@ -268,9 +270,9 @@ hitboxOverlap ((Pt x1 y1), s1) ((Pt x2 y2), s2) =
 
 
 getBullet :: Weapon -> Pos -> Bullet
-getBullet Peashooter p = E Pea 1 (p, 5) None 5 (-8, const 0) (0, -1) []
-getBullet Launcher p = E Rocket 1 (p, 10) None 5 (-8, const 0) (0, -1) []
-getBullet Laser p = E Laserbeam 1 (p, 10) None 5 (-8, const 0) (0, -1) []       -- alter the way this works, meaning also having to alter bulletmovements
+getBullet Peashooter p = E Pea 1 (p, 5) None 5 (-8, 0) (0, -1) []
+getBullet Launcher p = E Rocket 1 (p, 10) None 5 (-8, 0) (0, -1) []
+getBullet Laser p = E Laserbeam 1 (p, 10) None 5 (-8, 0) (0, -1) []       -- alter the way this works, meaning also having to alter bulletmovements
 
 
 switchWeapon :: Weapon -> Weapon
@@ -303,7 +305,7 @@ inputKey (EventKey (SpecialKey KeyTab) Down _ _) gstate
       newF = case newWe of
         Peashooter -> 0.5
         Launcher -> 1
-        Laser -> 0.1 -- lastig dit zeg tering
+        Laser -> 0.1
 
 inputKey (EventKey (Char 'p') Down _ _) gstate = if status gstate == Pause then gstate {status = Game} else gstate {status = Pause}
 inputKey (EventKey (Char 'r') _ _ _) gstate = initialState -- restart
