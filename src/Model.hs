@@ -71,13 +71,13 @@ data Weapon = None | Peashooter | Launcher | Laser deriving Show
 data Status = StartScreen | Game | Pause | GameOver deriving (Show, Eq)
 
 
-instance ToJSON GameState where
+--instance ToJSON GameState where
     -- No need to provide a toJSON implementation.
 
     -- For efficiency, we write a simple toEncoding implementation, as
     -- the default version uses toJSON.
     -- toEncoding = genericToEncoding defaultOptions
 
-instance FromJSON GameState
+--instance FromJSON GameState
     -- No need to provide a parseJSON implementation.
 

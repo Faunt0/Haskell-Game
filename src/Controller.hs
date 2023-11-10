@@ -36,7 +36,7 @@ import GameMechanics
 step :: Float -> GameState -> IO GameState
 step secs gstate
   | status gstate == StartScreen = return gstate {infoToShow = ShowAString "START MENU"}
-  | status gstate == Pause = return gstate {infoToShow = ShowAString "PAUSED" }
+  | status gstate == Pause = return gstate {infoToShow = ShowAString (show secs)}
   | status gstate == GameOver = return gstate {infoToShow = ShowAString "GAME OVER"}
   | otherwise =
   do
@@ -77,7 +77,7 @@ step secs gstate
 
     let somenoame = splitEntities (bullets (snd collisions)) [] []
     let updatedPlayer2 = (snd collisions) {bullets = fst somenoame} -- only keep the alive bullets
-    let explosions = necroSpawner (snd somenoame) -- moet ook spawnen voor sommige enemies niet alleen voor de dode rockets van de speler
+    let explosions = necroSpawner (snd somenoame) secs -- moet ook spawnen voor sommige enemies niet alleen voor de dode rockets van de speler
     let hitexp = hitExplosions2 (fst splitEntitiesRes) secs -- hit all the explosions with certain damage
     let updatedScore = score gstate + calcScore (snd splitEntitiesRes) -- tabulate the score based on the alive entities
 
@@ -128,8 +128,8 @@ collisionDamage (e:es) e2
     | hitboxOverlap (hitbox e) (hitbox e2) = collisionDamage es (e2 {health = health e2 - damage e})
     | otherwise = collisionDamage es e2
 
-necroSpawner :: [Entity] -> [Entity]
-necroSpawner es = flatten (map (\e -> [E Explosion 5 (fst (hitbox e), 20) None 5 (0, 0) (0, -1) [] | entityType e == Rocket]) es)
+necroSpawner :: [Entity] -> Float -> [Entity]
+necroSpawner es secs= flatten (map (\e -> [E Explosion (21 * secs) (fst (hitbox e), 20) None 5 (0, 0) (0, -1) [] | entityType e == Rocket]) es)
 
 hitExplosions2 :: [Entity] -> Float -> [Entity]
 hitExplosions2 es dmg = other ++ map (\e -> e {health = health e - dmg, hitbox = (fst (hitbox e), 4 * health e)}) explosions

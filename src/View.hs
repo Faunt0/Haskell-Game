@@ -43,15 +43,25 @@ entityPics (entity:es) picturemap= Translate x y pic : entityPics es picturemap
             Turret -> color blue (Polygon [(0, 0), (s, 0), (s, s), (0, s)])
             Worm -> scale 1.5 1.5 (picturemap ! "worm")
             Boss -> color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)])
-            Explosion -> picturemap ! "frame3"
+            Explosion -> explosionstate (health entity) picturemap
+                      
             -- bullets
             Pea -> scale 0.1 0.1 (picturemap ! "pea")
             Rocket -> color yellow (Circle s)
             Laserbeam -> color cyan (Line [(0, 0), (s, 0)])
             -- _ -> Blank -- is this necessary?
             --Explosion -> color azure (Circle s)
+      
 
-            
+explosionstate :: Float -> Map String Picture -> Picture
+explosionstate health picturemap| health >= 21*(1/60) = picturemap ! "frame1"
+                                | health >= 18*(1/60) = picturemap ! "frame2"
+                                | health >= 15*(1/60) = picturemap ! "frame3"
+                                | health >= 12*(1/60) = picturemap ! "frame4"
+                                | health >= 9*(1/60) = picturemap ! "frame5"
+                                | health >= 6*(1/60) = picturemap ! "frame6"
+                                | otherwise = picturemap ! "frame7"
+
 viewScore :: GameState -> Picture
 viewScore gstate = color red (text (show (score gstate)))
 
