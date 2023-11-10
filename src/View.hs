@@ -41,14 +41,15 @@ entityPics (entity:es) picturemap= Translate x y pic : entityPics es picturemap
             -- enemies
             Swarm -> picturemap ! "swarm"
             Turret -> color blue (Polygon [(0, 0), (s, 0), (s, s), (0, s)])
-            Worm -> color yellow (Polygon [(0, 0), (s, 0), (s, s), (0, s)])
+            Worm -> scale 1.5 1.5 (picturemap ! "worm")
             Boss -> color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)])
+            Explosion -> picturemap ! "frame3"
             -- bullets
             Pea -> scale 0.1 0.1 (picturemap ! "pea")
             Rocket -> color yellow (Circle s)
             Laserbeam -> color cyan (Line [(0, 0), (s, 0)])
             -- _ -> Blank -- is this necessary?
-            Explosion -> color azure (Circle s)
+            --Explosion -> color azure (Circle s)
 
             
 viewScore :: GameState -> Picture

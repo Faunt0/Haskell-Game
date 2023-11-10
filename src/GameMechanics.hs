@@ -35,6 +35,6 @@ wormSize :: Float
 swarmRoF = 3
 turretRoF = 10
 wormRoF = 10
-swarmSize = 20
+swarmSize = 32
 turretSize = 50
 wormSize = 50
