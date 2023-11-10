@@ -38,3 +38,7 @@ wormRoF = 10
 swarmSize = 32
 turretSize = 50
 wormSize = 50
+
+
+f :: Float -> Float
+f x = 3 * sin (1/(10 * 2*pi) * x)
