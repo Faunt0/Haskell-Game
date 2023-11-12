@@ -13,6 +13,7 @@ import Data.Set as S hiding (map, filter)
 import Offscreen
 import GameMechanics
 import System.Directory (getDirectoryContents)
+import GameMechanics (mountainSize)
 
 
 
@@ -183,7 +184,7 @@ spawner timers secs (xScreen, yScreen) p =
                 Brute -> Just (E Brute 5 (p, bruteSize) Peashooter 1 (2, 0) (0, bruteRoF) [])
                 --background entities
                 Cloud -> Just (E Cloud 1 (p, cloudSize) None 0 (3, 0) (0, -1) [])
-                Mountain -> Just (E Mountain 1 ((Pt (fromIntegral (xScreen `div` 2)) (- fromIntegral (yScreen `div` 2))), mountainSize) None 0 (1, 0) (0, -1) [])
+                Mountain -> Just (E Mountain 1 ((Pt (fromIntegral (xScreen `div` 2)+mountainSize) (- fromIntegral (yScreen `div` 2))), mountainSize) None 0 (1, 0) (0, -1) [])
                 Planet -> Just (E Planet 1 (p, planetSize) None 0 (0.5, 0) (0, -1) [])
                 _ -> Nothing
 
