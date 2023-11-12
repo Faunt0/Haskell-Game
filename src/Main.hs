@@ -6,6 +6,7 @@ import View
 import GameMechanics
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Game
+import Graphics.Gloss (loadBMP)
 
 
 
@@ -27,6 +28,7 @@ bitmaploadin = do
     s <- loadBMP "bitmaps/tiny_ship.bmp" 
     failed <- loadBMP "bitmaps/Mission failed.bmp"
     pea <- loadBMP "bitmaps/pea.bmp"
+    rocket <- loadBMP "bitmaps/Rocket.bmp"
     swarm <- loadBMP "bitmaps/swarm.bmp"
     worm <- loadBMP "bitmaps/worm.bmp"
     cloud <- loadBMP "bitmaps/Cloud.bmp"
@@ -40,5 +42,5 @@ bitmaploadin = do
                                "bitmaps/splosieframes/splosieframe6.bmp",
                                "bitmaps/splosieframes/splosieframe7.bmp"]
     let splosions2 = zip ["frame1","frame2","frame3","frame4","frame5","frame6","frame7"] splosions 
-    return (Data.Map.fromList ([("ship",s),("pea",pea),("swarm", swarm),("worm", worm),("failed",failed),("cloud",cloud),("moon",moon),("mountain",mountain)]++splosions2))
+    return (Data.Map.fromList ([("ship",s),("pea",pea),("swarm", swarm),("worm", worm),("failed",failed),("cloud",cloud),("moon",moon),("mountain",mountain),("rocket",rocket)]++splosions2))
               
