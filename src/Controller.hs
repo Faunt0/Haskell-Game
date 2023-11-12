@@ -47,7 +47,7 @@ import System.Directory (getDirectoryContents)
 step :: Float -> GameState -> IO GameState
 step secs gstate
   | status gstate == StartScreen = return gstate {infoToShow = ShowAString "START MENU"} -- dit moet in de view gebeuren toch? nergens anders
-  | status gstate == Pause = return gstate {infoToShow = ShowAString "PAUSE"}
+  | status gstate == Pause = return gstate --{infoToShow = ShowAString "PAUSE"}
   | status gstate == GameOver = return gstate --{infoToShow = ShowAString "GAME OVER"}
   | otherwise =
   do
@@ -87,13 +87,13 @@ step secs gstate
 
     let collisions = collissionCheck onScreenEntities updatedPlayer -- check if the enemies get shot and do the same for the player
 
-    let splitEntitiesRes = splitEntities (fst collisions) [] [] -- split the current enemies into the alive and dead ones -- maybe use this list to see if rockets are dead and need to spawn another explosion? or you could make an enemy which upon dying spawns a couple of other smaller enemies
+    let splitAliveDeadRes = splitAliveDead (fst collisions) -- split the current enemies into the alive and dead ones -- maybe use this list to see if rockets are dead and need to spawn another explosion? or you could make an enemy which upon dying spawns a couple of other smaller enemies
 
-    let somenoame = splitEntities (bullets (snd collisions)) [] [] -- split bullets for the player
+    let somenoame = splitAliveDead (bullets (snd collisions))-- split bullets for the player
     let updatedPlayer2 = (snd collisions) {bullets = fst somenoame} -- only keep the alive bullets
-    let explosions = necroSpawner (snd somenoame ++ snd splitEntitiesRes) secs -- spawn explosions when rockets and worms die
-    let hitexp = hitExplosions2 (fst splitEntitiesRes) secs -- hit all the explosions with certain damage
-    let updatedScore = score gstate + calcScore (snd splitEntitiesRes) -- tabulate the score based on the dead entities
+    let explosions = necroSpawner (snd somenoame ++ snd splitAliveDeadRes) secs -- spawn explosions when rockets and worms die
+    let hitexp = hitExplosions2 (fst splitAliveDeadRes) secs -- hit all the explosions with certain damage
+    let updatedScore = score gstate + calcScore (snd splitAliveDeadRes) -- tabulate the score based on the dead entities
 
     let entityFireBts = unzip (map (enemyFire updatedPlayer2 secs) hitexp) -- let the alive entities fire bullets and add them to the entities list
 
@@ -318,9 +318,13 @@ inputKeyStart (EventKey (Char '1') Down _ _) gstate =
   do
     files <- getDirectoryContents "saveFiles/"
     let firstFile = head files
-    fileGstate <- readGameState ("saveFiles/" ++ firstFile)
-    let g = fromJust fileGstate
-    return g
+    if length files > 2 
+      then do 
+        fileGstate <- readGameState ("saveFiles/" ++ firstFile)
+        return (fromJust fileGstate)
+      else return gstate
+    -- let g =  fileGstate
+    -- return g
 inputKeyStart e gstate = return gstate
 
 
@@ -334,7 +338,7 @@ inputKeyGame (EventKey (SpecialKey KeySpace) Down _ _) gstate = return gstate { 
 inputKeyGame (EventKey (SpecialKey KeySpace) Up _ _) gstate = return gstate { keys = deleteChar '.' (keys gstate)}
 -- | Switch weapon when possible
 inputKeyGame (EventKey (SpecialKey KeyTab) Down _ _) gstate
-  = return gstate { infoToShow = ShowAString "SW", player = (player gstate) {weapon = newWe, rate = (0, newF)} }
+  = return gstate {player = (player gstate) {weapon = newWe, rate = (0, newF)} }
     where
       (E et health hb we dmg dir (t, f) b) = player gstate
       newWe = switchWeapon we
@@ -346,15 +350,13 @@ inputKeyGame e gstate = return gstate
 
 
 inputKeyPause (EventKey (Char 'p') Down _ _) gstate = return gstate {status = Game}
--- als de muis binnen het vierkant van de "save" knop geklikt word
--- inputKey (EventKey (MouseButton LeftButton) Down _ (x, y)) gstate = 
---     if status gstate == Pause && hitboxOverlap (Pt x y, 1) (Pt (-200) (-100), 50)
+inputKeyPause (EventKey (Char 'r') Down _ _) gstate = return initialState
 inputKeyPause (EventKey (Char 's') Down _ _) gstate =
     if status gstate == Pause
     then do
-      writeGameState "saveFiles/save1.json" (gstate {keys = ""})
+      writeGameState "saveFiles/save1.json" (gstate {keys = ""}) -- currently only one saveslot
       putStrLn "SAVING YOUR GAME MAN"
-      return gstate {infoToShow = ShowAString "SAVING"}
+      return gstate {infoToShow = ShowAString "Saving"}
     else return gstate
 inputKeyPause e gstate = return gstate
 

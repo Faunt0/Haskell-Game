@@ -32,14 +32,14 @@ initialPlayer :: Entity
 initialPlayer = E Player 5 (Pt 0 0, 10) Peashooter 50 (0, 0) (0, 0.5) []
 spawnRate :: [TimerFreq] -- kan niet in de enemy zelf omdat die niet nieuwe enimies kan spawnen
 -- spawnRate = [T Swarm 0 0.5, T Worm 0 5, T Turret 0 3, T Cloud 0 2,T Mountain 0 6,T Planet 0 10] -- spawnrates of the different enemies, this can be adjusted based on the score.
-spawnRate = [T Swarm 0 4, T Worm 0 5, T Turret 0 5, T Cloud 0 5, T Mountain 0 10, T Planet 0 7] 
+spawnRate = [T Swarm 0 4, T Worm 0 5, T Turret 0 9, T Cloud 0 5, T Mountain 0 10, T Planet 0 7] 
 
 
 
 data InfoToShow = ShowNothing
                 | ShowANumber Int
                 | ShowAChar   Char
-                | ShowAString String deriving (Generic, Show)
+                | ShowAString String deriving (Generic, Show, Eq)
 
 data TimerFreq = T EntityTypes Time Freq deriving (Generic, Show, Eq)
 type Time = Float
