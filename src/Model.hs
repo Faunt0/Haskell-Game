@@ -40,7 +40,7 @@ data InfoToShow = ShowNothing
                 | ShowAChar   Char
                 | ShowAString String deriving (Generic, Show)
 
-data TimerFreq = T String Time Freq deriving (Generic, Show, Eq)
+data TimerFreq = T EntityTypes Time Freq deriving (Generic, Show, Eq)
 type Time = Float
 type Freq = Float
 type Damage = Float

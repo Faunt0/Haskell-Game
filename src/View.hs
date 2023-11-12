@@ -31,16 +31,15 @@ pics :: Map String Picture -> GameState -> IO Picture --using a gamestate and a 
 pics picturemap gstate = do 
   lives <- displayLives (player gstate) picturemap
   return (Pictures (
-        entityrendermoon (background gstate)++
-        entityrendermountain (background gstate)++
-        entityrendercloud (background gstate)++
+        entityrendermoon (background gstate) picturemap ++
+        entityrendermountain (background gstate) picturemap ++
+        entityrendercloud (background gstate) picturemap++
         [Translate x y (picturemap ! "ship") -- Player
         , Translate 30 30 (viewPure gstate) -- info to show
         , Translate 0 400 (scale 0.5 0.5 (viewScore gstate))] -- score
         ++ entityPics bts picturemap -- player bullets
         ++ entityPics (enemies gstate) picturemap -- render enemies
         ++ entityPics (flatten (Prelude.map bullets (enemies gstate))) picturemap++lives -- enemy bullets
-
       ))
   where
     (Pt x y, s) = hitbox (player gstate)
@@ -72,19 +71,19 @@ entityPics (entity:es) picturemap= Translate x y pic : entityPics es picturemap
             
 entityrendercloud :: [Entity] -> Map String Picture -> [Picture] --to simulate parralax we had to make sure the background entities were rendered in the right order
 entityrendercloud [] _ = []
-entityrendercloud (entity:xs) picturemap | entityType entity == Cloud= Translate x y (picturemap ! "cloud"):xs
+entityrendercloud (entity:xs) picturemap | entityType entity == Cloud= Translate x y (picturemap ! "cloud") : entityrendercloud xs picturemap | otherwise = []
             where 
             (Pt x y) = fst (hitbox entity) 
 
 entityrendermountain :: [Entity] -> Map String Picture -> [Picture]
 entityrendermountain [] _ = []
-entityrendermountain (entity:xs) picturemap | entityType entity == Mountain= Translate x y (picturemap ! "mountain"):xs
+entityrendermountain (entity:xs) picturemap | entityType entity == Mountain= Translate x y (picturemap ! "mountain") : entityrendermountain xs picturemap | otherwise = []
             where 
             (Pt x y) = fst (hitbox entity) 
 
 entityrendermoon :: [Entity] -> Map String Picture -> [Picture]
 entityrendermoon [] _ = []
-entityrendermoon (entity:xs) picturemap | entityType entity == Moon= Translate x y (picturemap ! "moon"):xs
+entityrendermoon (entity:xs) picturemap | entityType entity == Planet = Translate x y (picturemap ! "moon") : entityrendermoon xs picturemap | otherwise = []
             where 
             (Pt x y) = fst (hitbox entity) 
             

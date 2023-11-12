@@ -95,9 +95,10 @@ step secs gstate
     let entityFireBts = unzip (map (enemyFire updatedPlayer2 secs) hitexp) -- let the alive entities fire bullets and add them to the entities list
 
     let noOffscreenBg = entityOffscreen (background gstate) screenSize
-    let bgSpawnRes = unzip (backgroundSpawner newTimeFreq secs screensize (Pt (fromIntegral (xScreen `div` 2) - margin) randomY))
+    let movedBg = map moveEntity noOffscreenBg
+    let bgSpawnRes = unzip (backgroundSpawner newTimeFreq secs screenSize (Pt (fromIntegral (xScreen `div` 2) - margin) randomY))
     let newTimers = fst bgSpawnRes
-    let newBg = snd bgSpawnRes
+    let newBg = catMaybes (snd bgSpawnRes)
 
 
     let statusUpdate = if health (snd collisions) <= 0 then GameOver else status gstate -- update the status based on the health of the player
@@ -107,7 +108,7 @@ step secs gstate
     , elapsedTime = elapsedTime gstate + secs
     , player = updatedPlayer2
     , enemies = fst entityFireBts ++ flatten (snd entityFireBts) ++ newEnemies ++ explosions
-    , background = noOffscreenBg ++ newBg
+    , background = movedBg ++ newBg
     , timer = newTimers
     , score = updatedScore })
 
@@ -207,19 +208,23 @@ splitEntities (e:es) alive dead
 
 
 spawner :: [TimerFreq] -> Float -> Score -> (Int, Int) -> Pos -> [(TimerFreq, Maybe Enemy)]
-spawner timers secs score (xScreen, yScreen) p = map (\(T name time freq) -> if time >= freq then (T name 0 (alterFreq freq score), Just (getEntity name)) else (T name (time + secs) freq, Nothing)) timers
+spawner timers secs score (xScreen, yScreen) p = 
+  map (\(T name time freq) -> 
+    if time >= freq 
+      then (T name 0 (alterFreq freq score), getEntity name) 
+      else (T name (time + secs) freq, Nothing)) timers
     where
       alterFreq :: Freq -> Score -> Freq
       alterFreq freq s = freq
       -- alterFreq freq s = freq / (freq + fromIntegral s) -- base the spawnrates on the score
-      getEntity :: EntityTypes -> Entity
+      getEntity :: EntityTypes -> Maybe Entity
       getEntity name
-          | score > 500 = E Boss 5 (Pt 600 100, wormSize) Peashooter 50 (0, 0) (0, wormRoF) [] -- misschien niet hier, maak aparte boss functie met aparte spawners enzo en waves gebaseerd op zn health. moet er maar eentje spawnen en dan niet andere enemies
+          | score > 500 = Just (E Boss 5 (Pt 600 100, wormSize) Peashooter 50 (0, 0) (0, wormRoF) []) -- misschien niet hier, maak aparte boss functie met aparte spawners enzo en waves gebaseerd op zn health. moet er maar eentje spawnen en dan niet andere enemies
           | otherwise = case name of
                   -- "Swarm" -> E Swarm 3 (p, swarmSize) Peashooter 5 (0, 0) (0, swarmRoF - (fromIntegral score/20)) [] -- als je dit doet krijg je dat ze ineens enorm vaak schieten, dan lijkt de hitbox niet meer te werken?
-                  Swarm -> E Swarm 3 (p, swarmSize) Peashooter 1 (2, 0) (0, swarmRoF) []
-                  Turret -> E Turret 100000000 (Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2)), turretSize) Peashooter 1 (2, 0) (0, turretRoF) []
-                  Worm -> E Worm 5 (p, wormSize) Peashooter 1 (2, 0) (0, wormRoF) []
+                  Swarm -> Just (E Swarm 3 (p, swarmSize) Peashooter 1 (2, 0) (0, swarmRoF) [])
+                  Turret -> Just (E Turret 100000000 (Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2)), turretSize) Peashooter 1 (2, 0) (0, turretRoF) [])
+                  Worm -> Just (E Worm 5 (p, wormSize) Peashooter 1 (2, 0) (0, wormRoF) [])
                   _ -> Nothing
         -- baseer het spawnen van de boss op de score, misschien een if then else gebruiken om alleen een boss te spawnen als de score zo hoog is en anders gewone enemies te spawnen.
 -- bossFight :: [] -> Score
@@ -230,14 +235,14 @@ backgroundSpawner :: [TimerFreq] -> Float -> (Int, Int) -> Pos -> [(TimerFreq, M
 backgroundSpawner timers secs (xScreen, yScreen) p = 
   map (\(T name time freq) -> 
     if time >= freq 
-      then (T name 0 (alterFreq freq score), Just (getEntity name)) 
+      then (T name 0 freq, getEntity name) 
       else (T name (time + secs) freq, Nothing)) timers
     where
-      getEntity :: EntityTypes -> Entity
+      getEntity :: EntityTypes -> Maybe Entity
       getEntity name = case name of
-        Cloud -> E Cloud 1 (p, cloudSize) None 0 (3, 0) (0, -1) []
-        Mountain -> E Mountain 1 (p, mountainSize) None 0 (3, 0) (0, -1) []
-        Planet -> E Planet 1 (p, planetSize) None 0 (3, 0) (0, -1) []
+        Cloud -> Just (E Cloud 1 (p, cloudSize) None 0 (3, 0) (0, -1) [])
+        Mountain -> Just (E Mountain 1 (p, mountainSize) None 0 (3, 0) (0, -1) [])
+        Planet -> Just (E Planet 1 (p, planetSize) None 0 (3, 0) (0, -1) [])
         _ -> Nothing
 
 
