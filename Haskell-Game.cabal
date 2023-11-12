@@ -3,7 +3,7 @@ version:             0.1.0.0
 author:              Lex Klaassen and Viggo de Breij
 maintainer:          -
 category:            Game
-build-type:          Final
+build-type:          Simple
 cabal-version:       >=1.10
 
 
