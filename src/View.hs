@@ -52,7 +52,7 @@ entityPics (entity:es) picturemap= Translate x y pic : entityPics es picturemap
             Laserbeam -> color cyan (Line [(0, 0), (s, 0)])
       
 
-explosionstate :: Float -> Map String Picture -> Picture
+explosionstate :: Float -> Map String Picture -> Picture  --Display a frame of the explosion animation based of the health of the explosion entity
 explosionstate health picturemap| health >= 21*(1/fromIntegral fps) = picturemap ! "frame1"
                                 | health >= 18*(1/fromIntegral fps) = picturemap ! "frame2"
                                 | health >= 15*(1/fromIntegral fps) = picturemap ! "frame3"
