@@ -37,6 +37,7 @@ pics picturemap gstate = do
         ++ entityPics bts picturemap -- player bullets
         ++ entityPics (enemies gstate) picturemap -- render enemies
         ++ entityPics (flatten (Prelude.map bullets (enemies gstate))) picturemap++lives -- enemy bullets
+
       ))
   where
     (Pt x y, s) = hitbox (player gstate)
