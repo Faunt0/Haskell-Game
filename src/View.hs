@@ -69,23 +69,23 @@ entityPics (entity:es) picturemap= Translate x y pic : entityPics es picturemap
             
 entityrendercloud :: [Entity] -> Map String Picture -> [Picture] --to simulate parralax we had to make sure the background entities were rendered in the right order
 entityrendercloud [] _ = []
-entityrendercloud (entity:xs) picturemap | entityType entity == Cloud= Translate x y (picturemap ! "cloud") : entityrendercloud xs picturemap | otherwise = []
+entityrendercloud (entity:xs) picturemap | entityType entity == Cloud= Translate x y (picturemap ! "cloud") : entityrendercloud xs picturemap | otherwise = entityrendercloud xs picturemap
             where 
             (Pt x y) = fst (hitbox entity) 
 
 entityrendermountain :: [Entity] -> Map String Picture -> [Picture]
 entityrendermountain [] _ = []
-entityrendermountain (entity:xs) picturemap | entityType entity == Mountain= Translate x y (picturemap ! "mountain") : entityrendermountain xs picturemap | otherwise = []
+entityrendermountain (entity:xs) picturemap | entityType entity == Mountain= Translate x y (picturemap ! "mountain") : entityrendermountain xs picturemap | otherwise = entityrendermountain xs picturemap
             where 
             (Pt x y) = fst (hitbox entity) 
 
 entityrendermoon :: [Entity] -> Map String Picture -> [Picture]
 entityrendermoon [] _ = []
-entityrendermoon (entity:xs) picturemap | entityType entity == Planet = Translate x y (picturemap ! "moon") : entityrendermoon xs picturemap | otherwise = []
+entityrendermoon (entity:xs) picturemap | entityType entity == Planet = Translate x y (picturemap ! "moon") : entityrendermoon xs picturemap | otherwise = entityrendermoon xs picturemap
             where 
             (Pt x y) = fst (hitbox entity) 
             
-      
+
 
 explosionstate :: Float -> Map String Picture -> Picture   --change frame of explosion based of explosions health
 explosionstate health picturemap| health >= 21*(1/fromIntegral fps) = picturemap ! "frame1"

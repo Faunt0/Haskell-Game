@@ -58,14 +58,17 @@ step secs gstate
     let margin = 0
 
     random1 <- randomRIO (1, 5) :: IO Int
-    random2 <- randomRIO (- fromIntegral yScreen + margin, fromIntegral yScreen - margin) :: IO Float
+    random2 <- randomRIO (- fromIntegral (yScreen `div` 2), fromIntegral (yScreen `div` 2)) :: IO Float
     let randomY = random2
 
 
-    -- Spawner
+    -- Spawner for both enemies and background elements
     let res = unzip (spawner (timer gstate) secs (score gstate) screenSize (Pt (fromIntegral (xScreen `div` 2) - margin) randomY))
     let newTimeFreq = fst res
-    let newEnemies = catMaybes (snd res)
+    let newEntities = catMaybes (snd res)
+    let newEnemies = filter (\e -> entityType e `elem` [Swarm, Turret, Worm]) newEntities
+    let newBg = filter (\e -> entityType e `elem` [Cloud, Planet, Mountain]) newEntities
+
 
     -- check if any bullet hits an enemy and moves the bullet
     -- make a central update player and central update entities function for as far as it goes
@@ -86,23 +89,17 @@ step secs gstate
 
     let splitEntitiesRes = splitEntities (fst collisions) [] [] -- split the current enemies into the alive and dead ones -- maybe use this list to see if rockets are dead and need to spawn another explosion? or you could make an enemy which upon dying spawns a couple of other smaller enemies
 
-    let somenoame = splitEntities (bullets (snd collisions)) [] []
+    let somenoame = splitEntities (bullets (snd collisions)) [] [] -- split bullets for the player
     let updatedPlayer2 = (snd collisions) {bullets = fst somenoame} -- only keep the alive bullets
-    let explosions = necroSpawner (snd somenoame) secs -- moet ook spawnen voor sommige enemies niet alleen voor de dode rockets van de speler
+    let explosions = necroSpawner (snd somenoame ++ snd splitEntitiesRes) secs -- spawn explosions when rockets and worms die
     let hitexp = hitExplosions2 (fst splitEntitiesRes) secs -- hit all the explosions with certain damage
-    let updatedScore = score gstate + calcScore (snd splitEntitiesRes) -- tabulate the score based on the alive entities
+    let updatedScore = score gstate + calcScore (snd splitEntitiesRes) -- tabulate the score based on the dead entities
 
     let entityFireBts = unzip (map (enemyFire updatedPlayer2 secs) hitexp) -- let the alive entities fire bullets and add them to the entities list
 
-  
+
     -- update the background elements
     let resBg = updateBackgroundEntities gstate screenSize
-
-    -- new background entities
-    let bgSpawnRes = unzip (backgroundSpawner newTimeFreq secs screenSize (Pt (fromIntegral (xScreen `div` 2) - margin) randomY))
-    let newTimers = fst bgSpawnRes
-    let newBg = catMaybes (snd bgSpawnRes)
-
 
     let statusUpdate = if health (snd collisions) <= 0 then GameOver else status gstate -- update the status based on the health of the player
 
@@ -112,9 +109,14 @@ step secs gstate
     , player = updatedPlayer2
     , enemies = fst entityFireBts ++ concat (snd entityFireBts) ++ newEnemies ++ explosions
     , background = resBg ++ newBg
-    , timer = newTimers
+    , timer = newTimeFreq
     , score = updatedScore })
 
+-- updateEntities :: GameState -> Player -> (Int, Int) -> [Entity]
+-- updateEntities gstate p screenSize =
+--   where
+--     moveEnt = map moveEntity (enemies gstate) -- move the entities
+--     remOffEnt = entityOffscreen moveEnt screenSize -- remove the offscreen entities
 
 updateBackgroundEntities :: GameState -> (Int, Int) -> [Entity]
 updateBackgroundEntities gstate screenSize = movedBg
@@ -149,7 +151,7 @@ collisionDamage (e:es) e2
     | otherwise = collisionDamage es e2
 
 necroSpawner :: [Entity] -> Float -> [Entity]
-necroSpawner es secs= concat (map (\e -> [E Explosion (21 * secs) (fst (hitbox e), 20) None 5 (0, 0) (0, -1) [] | entityType e == Rocket]) es)
+necroSpawner es secs= concatMap (\e -> [E Explosion (21 * secs) (fst (hitbox e), 20) None 5 (0, 0) (0, -1) [] | entityType e `elem` [Rocket, Worm]]) es
 
 hitExplosions2 :: [Entity] -> Float -> [Entity]
 hitExplosions2 es dmg = other ++ map (\e -> e {health = health e - dmg, hitbox = (fst (hitbox e), 4 * health e)}) explosions
@@ -210,43 +212,43 @@ splitEntities (e:es) alive dead
     | otherwise = splitEntities es (e:alive) dead
 
 
-spawner :: [TimerFreq] -> Float -> Score -> (Int, Int) -> Pos -> [(TimerFreq, Maybe Enemy)]
+spawner :: [TimerFreq] -> Float -> Score -> (Int, Int) -> Pos -> [(TimerFreq, Maybe Entity)]
 spawner timers secs score (xScreen, yScreen) p = 
   map (\(T name time freq) -> 
-    if time >= freq 
-      then (T name 0 (alterFreq freq score), getEntity name) 
+    if time >= freq
+      then (T name 0 freq, getEntity name) 
       else (T name (time + secs) freq, Nothing)) timers
     where
-      alterFreq :: Freq -> Score -> Freq
-      alterFreq freq s = freq
-      -- alterFreq freq s = freq / (freq + fromIntegral s) -- base the spawnrates on the score
       getEntity :: EntityTypes -> Maybe Entity
       getEntity name
           | score > 500 = Just (E Boss 5 (Pt 600 100, wormSize) Peashooter 50 (0, 0) (0, wormRoF) []) -- misschien niet hier, maak aparte boss functie met aparte spawners enzo en waves gebaseerd op zn health. moet er maar eentje spawnen en dan niet andere enemies
           | otherwise = case name of
-                  -- "Swarm" -> E Swarm 3 (p, swarmSize) Peashooter 5 (0, 0) (0, swarmRoF - (fromIntegral score/20)) [] -- als je dit doet krijg je dat ze ineens enorm vaak schieten, dan lijkt de hitbox niet meer te werken?
-                  Swarm -> Just (E Swarm 3 (p, swarmSize) Peashooter 1 (2, 0) (0, swarmRoF) [])
-                  Turret -> Just (E Turret 100000000 (Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2)), turretSize) Peashooter 1 (2, 0) (0, turretRoF) [])
-                  Worm -> Just (E Worm 5 (p, wormSize) Peashooter 1 (2, 0) (0, wormRoF) [])
-                  _ -> Nothing
+                Swarm -> Just (E Swarm 3 (p, swarmSize) Peashooter 1 (2, 0) (0, swarmRoF) [])
+                Turret -> Just (E Turret 100000000 (Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2)), turretSize) Peashooter 1 (2, 0) (0, turretRoF) [])
+                Worm -> Just (E Worm 5 (p, wormSize) Peashooter 1 (2, 0) (0, wormRoF) [])
+                --background entities
+                Cloud -> Just (E Cloud 1 (p, cloudSize) None 0 (3, 0) (0, -1) [])
+                Mountain -> Just (E Mountain 1 ((Pt (fromIntegral (xScreen `div` 2)) (- fromIntegral (yScreen `div` 2))), mountainSize) None 0 (1, 0) (0, -1) [])
+                Planet -> Just (E Planet 1 (p, planetSize) None 0 (0.5, 0) (0, -1) [])
+                _ -> Nothing
         -- baseer het spawnen van de boss op de score, misschien een if then else gebruiken om alleen een boss te spawnen als de score zo hoog is en anders gewone enemies te spawnen.
 -- bossFight :: [] -> Score
 -- baseer het aantal enemies wat spawnt op de score en het hp van de boss
 
 
-backgroundSpawner :: [TimerFreq] -> Float -> (Int, Int) -> Pos -> [(TimerFreq, Maybe Entity)]
-backgroundSpawner timers secs (xScreen, yScreen) p = 
-  map (\(T name time freq) -> 
-    if time >= freq 
-      then (T name 0 freq, getEntity name) 
-      else (T name (time + secs) freq, Nothing)) timers
-    where
-      getEntity :: EntityTypes -> Maybe Entity
-      getEntity name = case name of
-        Cloud -> Just (E Cloud 1 (p, cloudSize) None 0 (3, 0) (0, -1) [])
-        Mountain -> Just (E Mountain 1 (p, mountainSize) None 0 (3, 0) (0, -1) [])
-        Planet -> Just (E Planet 1 (p, planetSize) None 0 (3, 0) (0, -1) [])
-        _ -> Nothing
+-- backgroundSpawner :: [TimerFreq] -> Float -> (Int, Int) -> Pos -> [(TimerFreq, Maybe Entity)]
+-- backgroundSpawner timers secs (xScreen, yScreen) (Pt x y) = 
+--   map (\(T name time freq) -> 
+--     if time >= freq && name `elem` [Cloud, Mountain, Planet]
+--       then (T name 0 freq, getEntity name)
+--       else (T name (time + secs) freq, Nothing)) timers
+--     where
+--       getEntity :: EntityTypes -> Maybe Entity
+--       getEntity name = case name of
+--         Cloud -> Just (E Cloud 1 ((Pt (x) y), cloudSize) None 0 (3, 0) (0, -1) [])
+--         Mountain -> Just (E Mountain 1 ((Pt (x) (- fromIntegral (yScreen `div` 2))), mountainSize) None 0 (3, 0) (0, -1) [])
+--         Planet -> Just (E Planet 1 ((Pt (x) y), planetSize) None 0 (3, 0) (0, -1) [])
+--         _ -> Nothing
 
 
 calcScore :: [Enemy] -> Score
