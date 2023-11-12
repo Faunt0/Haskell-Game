@@ -64,7 +64,7 @@ entityPics (entity:es) picturemap= Translate x y pic : entityPics es picturemap
                       
             -- bullets
             Pea -> scale 0.1 0.1 (picturemap ! "pea")
-            Rocket -> color yellow (Circle s)
+            Rocket -> scale 0.2 0.2 (picturemap ! "rocket")
             Laserbeam -> color cyan (Line [(0, 0), (s, 0)])
             
 entityrendercloud :: [Entity] -> Map String Picture -> [Picture] --to simulate parralax we had to make sure the background entities were rendered in the right order
