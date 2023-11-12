@@ -48,9 +48,9 @@ pics :: Map String Picture -> GameState -> IO Picture --using a gamestate and a 
 pics picturemap gstate = do
   lives <- displayStats gstate picturemap
   return (Pictures (
-        entityrendermoon (background gstate) picturemap
-        ++ entityrendermountain (background gstate) picturemap
-        ++ entityrendercloud (background gstate) picturemap
+        entityrendermoon (background gstate) picturemap --moons
+        ++ entityrendermountain (background gstate) picturemap --mountains
+        ++ entityrendercloud (background gstate) picturemap --clouds
         ++ [Translate x y (picturemap ! "ship")] -- Player
         ++ entityPics bts picturemap -- Player bullets
         ++ entityPics (enemies gstate) picturemap -- Enemies
@@ -79,9 +79,9 @@ entityPics (entity:es) picturemap= Translate x y pic : entityPics es picturemap
             Rocket -> scale 0.2 0.2 (picturemap ! "rocket")
             Laserbeam -> color cyan (Line [(0, 0), (s, 0)])
 
-entityrendercloud :: [Entity] -> Map String Picture -> [Picture] --to simulate parralax we had to make sure the background entities were rendered in the right order
+entityrendercloud :: [Entity] -> Map String Picture -> [Picture] --to simulate parralax we had to make sure the background entities were rendered in the right order, so we use 3 different functions for all the elements.
 entityrendercloud [] _ = []
-entityrendercloud (entity:xs) picturemap | entityType entity == Cloud= Translate x y (picturemap ! "cloud") : entityrendercloud xs picturemap | otherwise = entityrendercloud xs picturemap
+entityrendercloud (entity:xs) picturemap | entityType entity == Cloud= Translate x y (scale 4 4 (picturemap ! "cloud")) : entityrendercloud xs picturemap | otherwise = entityrendercloud xs picturemap
             where
             (Pt x y) = fst (hitbox entity)
 
