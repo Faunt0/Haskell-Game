@@ -177,17 +177,17 @@ enemyFire player secs e
     d@(dx, dy) = (-xdif * 4 / c,-ydif * 4 / c)
 
     b = case entityType e of
-        Swarm -> [E Pea 1 (ePos, 10) None 5 d (0, -1) []]
+        Swarm -> [E Pea 1 (ePos, 10) None 1 d (0, -1) []]
         Worm -> []
-        Turret -> [E Pea 1 (ePos, 10) None 5 d (0, -1) [], E Pea 1 (ePos, 10) None 5 d (0, -1) []]
-        Boss -> [E Rocket 1 (ePos, 10) None 5 d (0, -1) []]
+        Turret -> [E Pea 1 (ePos, 10) None 1 d (0, -1) [], E Pea 1 (ePos, 10) None 5 d (0, -1) []]
+        Boss -> [E Rocket 1 (ePos, 10) None 1 d (0, -1) []]
         _ -> []
 
 
 moveEntity :: Entity -> Entity
 moveEntity e = e {hitbox = (newPt, s)}
     where
-        ((Pt x y), s)= hitbox e
+        (Pt x y, s)= hitbox e
         (dx, dy) = direction e
         newPt = if entityType e `elem` [Swarm, Worm] then Pt (x - dx) (y - f (x - dx)) else Pt (x - dx) (y - dy) -- use the function defined in the gamemechanics for the swarms
 
@@ -215,12 +215,12 @@ spawner timers secs score (xScreen, yScreen) p = map (\(T name time freq) -> if 
 
       getEntity :: String -> Entity
       getEntity name
-          | score > 500 = E Boss 5 ((Pt 600 100), wormSize) Peashooter 50 (0, 0) (0, wormRoF) [] -- misschien niet hier, maak aparte boss functie met aparte spawners enzo en waves gebaseerd op zn health. moet er maar eentje spawnen en dan niet andere enemies
+          | score > 500 = E Boss 5 (Pt 600 100, wormSize) Peashooter 50 (0, 0) (0, wormRoF) [] -- misschien niet hier, maak aparte boss functie met aparte spawners enzo en waves gebaseerd op zn health. moet er maar eentje spawnen en dan niet andere enemies
           | otherwise = case name of
                   -- "Swarm" -> E Swarm 3 (p, swarmSize) Peashooter 5 (0, 0) (0, swarmRoF - (fromIntegral score/20)) [] -- als je dit doet krijg je dat ze ineens enorm vaak schieten, dan lijkt de hitbox niet meer te werken?
-                  "Swarm" -> E Swarm 3 (p, swarmSize) Peashooter 5 (2, 0) (0, swarmRoF) []
-                  "Turret" -> E Turret 100000000 ((Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2))), turretSize) Peashooter 10 (2, 0) (0, turretRoF) []
-                  "Worm" -> E Worm 5 (p, wormSize) Peashooter 50 (2, 0) (0, wormRoF) []
+                  "Swarm" -> E Swarm 3 (p, swarmSize) Peashooter 1 (2, 0) (0, swarmRoF) []
+                  "Turret" -> E Turret 100000000 (Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2)), turretSize) Peashooter 1 (2, 0) (0, turretRoF) []
+                  "Worm" -> E Worm 5 (p, wormSize) Peashooter 1 (2, 0) (0, wormRoF) []
         -- baseer het spawnen van de boss op de score, misschien een if then else gebruiken om alleen een boss te spawnen als de score zo hoog is en anders gewone enemies te spawnen.
 
 -- bossFight :: [] -> Score
