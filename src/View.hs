@@ -12,7 +12,7 @@ import Prelude
 
 view :: Map String Picture -> GameState -> IO Picture
 view p gstate= pics p gstate
-
+--test
 
 pics :: Map String Picture -> GameState -> IO Picture
 pics picturemap gstate
