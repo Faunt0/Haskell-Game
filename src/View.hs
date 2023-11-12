@@ -11,7 +11,7 @@ import GHC.Base (undefined)
 import Graphics.Gloss.Interface.Environment (getScreenSize)
 import Prelude
 
-view :: Map String Picture -> GameState -> IO Picture
+view :: Map String Picture -> GameState -> IO Picture  --check status, display the corresponding view
 view p gstate
   | status gstate == StartScreen = startScreenPic p
   | status gstate == Game = pics p gstate
@@ -66,7 +66,7 @@ entityPics (entity:es) picturemap= Translate x y pic : entityPics es picturemap
       pic = case entityType entity of
             -- enemies
             Swarm -> picturemap ! "swarm"
-            Turret -> picturemap ! "turret"
+            Turret -> scale 0.3 0.3 (picturemap ! "turret")
             Worm -> scale 1.5 1.5 (picturemap ! "worm")
             Boss -> color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)])
             Explosion -> explosionstate (health entity) picturemap
