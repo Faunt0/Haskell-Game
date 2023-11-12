@@ -332,7 +332,7 @@ inputKeyStart e gstate = return gstate
 inputKeyGame :: Event -> GameState -> IO GameState
 inputKeyGame (EventKey (Char c) Down _ _) gstate | c == 'w' || c=='a' || c=='s' || c=='d' = return gstate {keys = insertChar c (keys gstate)}
 inputKeyGame (EventKey (Char c) Up _ _) gstate = return gstate {keys = deleteChar c (keys gstate)}
-inputKeyGame (EventKey (Char 'p') Down _ _) gstate = return gstate {status = Pause}
+inputKeyGame (EventKey (Char 'p') Down _ _) gstate = return gstate {keys="",status = Pause}
 -- | Shoot bullets!
 inputKeyGame (EventKey (SpecialKey KeySpace) Down _ _) gstate = return gstate { keys = insertChar '.' (keys gstate)}
 inputKeyGame (EventKey (SpecialKey KeySpace) Up _ _) gstate = return gstate { keys = deleteChar '.' (keys gstate)}

@@ -118,8 +118,7 @@ displayStats gstate picturemap= do
 
 
 
-viewScore :: GameState -> Picture
-viewScore gstate = color red (text (show (score gstate)))
+
 
 viewPure :: GameState -> Picture
 viewPure gstate = case infoToShow gstate of
