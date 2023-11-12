@@ -34,6 +34,7 @@ bitmaploadin = do
     cloud <- loadBMP "bitmaps/Cloud.bmp"
     moon <- loadBMP "bitmaps/Moon.bmp"
     mountain <- loadBMP "bitmaps/Mountain.bmp"
+    title <- loadBMP "bitmaps/title.bmp"
     splosions <- mapM loadBMP ["bitmaps/splosieframes/splosieframe1.bmp",
                                "bitmaps/splosieframes/splosieframe2.bmp",
                                "bitmaps/splosieframes/splosieframe3.bmp",
@@ -42,5 +43,5 @@ bitmaploadin = do
                                "bitmaps/splosieframes/splosieframe6.bmp",
                                "bitmaps/splosieframes/splosieframe7.bmp"]
     let splosions2 = zip ["frame1","frame2","frame3","frame4","frame5","frame6","frame7"] splosions 
-    return (Data.Map.fromList ([("ship",s),("pea",pea),("swarm", swarm),("worm", worm),("failed",failed),("cloud",cloud),("moon",moon),("mountain",mountain),("rocket",rocket)]++splosions2))
+    return (Data.Map.fromList ([("title",title),("ship",s),("pea",pea),("swarm", swarm),("worm", worm),("failed",failed),("cloud",cloud),("moon",moon),("mountain",mountain),("rocket",rocket)]++splosions2))
               

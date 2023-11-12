@@ -13,18 +13,19 @@ import Prelude
 
 view :: Map String Picture -> GameState -> IO Picture
 view p gstate
-  | status gstate == StartScreen = startScreenPic
+  | status gstate == StartScreen = startScreenPic p
   | status gstate == Game = pics p gstate
   | status gstate == Pause = pics p gstate
   | status gstate == GameOver = pics p gstate
 
-startScreenPic :: IO Picture
-startScreenPic = do 
+startScreenPic :: Map String Picture -> IO Picture
+startScreenPic picturemap = do 
   files <- getDirectoryContents "saveFiles/"
   let firstFile = head files
-  let filePic = [Translate (-200) (-140) (scale 0.5 0.5 (color green (text firstFile)))]
-  let p = [Translate (-200) (200) (color green (text "START MENU")), Translate (-200) (0) (color green (text "SAVE FILES:"))]
-  return (Pictures (p ++ filePic))
+  let filePic = [Translate (-400) (-500) (scale 0.5 0.5 (color green (text firstFile)))]
+  let p = [Translate (-100) (500) (scale 0.3 0.3 (color green (text "START MENU"))), Translate (-400) (-400) (color green (text "SAVE FILES:"))]
+  let titlePic = [picturemap ! "title"]
+  return (Pictures (p ++ filePic ++ titlePic))
 
 pics :: Map String Picture -> GameState -> IO Picture --using a gamestate and a map of all pictures, go through all entities and return the picture
 pics picturemap gstate = do 
