@@ -2,21 +2,15 @@
 module Offscreen where
 
 import Model
+import GameMechanics
 
--- may want to add a margin so the enemy does not immediately despawn the second it hits the edge of the screen
-bulletOffscreen :: [Bullet] -> (Int, Int) -> [Bullet]
-bulletOffscreen [] _ = []
-bulletOffscreen (b:bts) (x, y)
-    | fromIntegral (x `div` 2) - margin <= bx = bulletOffscreen bts (x, y) -- only checks on the x not the y and only the right part of the screen not the left (is this necessary? think boomerangs)
-    | otherwise = b : bulletOffscreen bts (x, y)
+-- | Remove for a list of entities those that are out of our bounds
+entityOffscreen :: [Entity] -> (Int, Int) -> [Entity]
+entityOffscreen [] _ = []
+entityOffscreen (e:bts) (x, y)
+    | offscreen_Xaxis = entityOffscreen bts (x, y)
+    | otherwise = e : entityOffscreen bts (x, y)
     where
-      (Pt bx by) = fst (bulletHitbox b)
-      margin = 100
-enemyOffscreen :: [Enemy] -> (Int, Int) -> [Enemy]
-enemyOffscreen [] _ = []
-enemyOffscreen (e:es) (x, y)
-    | fromIntegral (x `div` 2) <= ex || ex < - fromIntegral (x `div` 2) = enemyOffscreen es (x, y)
-    | otherwise = e : enemyOffscreen es (x, y)
-    where
-      Pt ex ey = fst (enemyHitBox e)
-    --   margin = 100
+      (Pt ex ey) = fst (hitbox e)
+      margin = 0
+      offscreen_Xaxis = ex >= fromIntegral (x `div` 2) + xmargin + 100 || ex <= - fromIntegral (x `div` 2) - xmargin - 100

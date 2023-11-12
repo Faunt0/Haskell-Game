@@ -10,21 +10,11 @@ import Graphics.Gloss.Interface.Environment
 import System.Random
 import Data.Maybe
 import Data.Set as S hiding (map, filter)
--- import System.Exit (exitSuccess)
 import Offscreen
+import GameMechanics
+import System.Directory (getDirectoryContents)
+import GameMechanics (mountainSize)
 
-
--- TODOS
--- maybe make more packages to have a cleaner file
--- collision damage
--- Misschien een sniper maken of burst in meerdere richtingen
--- boosts/health maken
--- artwork
--- background elements
--- misschien werken met ammo en reload systemen zodat je niet gewoon je knoppen kunt blijven spammen?
--- misschien iets met dat je een moederschip moet beschermen wat damage krijgt van collissions met enemies
--- misschien enemies die stil staan op gegeven momenten en gewoon schieten
--- misschien een soort backup players die achter de Player schieten.
 
 
 -- | Handle one iteration of the game
@@ -32,242 +22,301 @@ import Offscreen
 -- | Enemies spawn, move here and attack here
 -- | Spawn enemies here based on a frequency which is correlated to the score of the player
 step :: Float -> GameState -> IO GameState
-step secs gstate = 
-  do 
-    -- let gstate = gstate {player = updatedPlayer} -- incase we want to make things more readable, this is also a way of jotting things down
+step secs gstate
+  | status gstate == StartScreen = return gstate
+  | status gstate == Pause = return gstate 
+  | status gstate == GameOver = return gstate 
+  | otherwise =
+  do
     -- spawn new enemies
     screenSize <- getScreenSize
     let xScreen = fst screenSize
     let yScreen = snd screenSize
+    let margin = 0
 
-    let margin = 50
     random1 <- randomRIO (1, 5) :: IO Int
-    random2 <- randomRIO (- fromIntegral yScreen + margin, fromIntegral yScreen - margin) :: IO Float
+    random2 <- randomRIO (- fromIntegral (yScreen `div` 2), fromIntegral (yScreen `div` 2)) :: IO Float
     let randomY = random2
 
 
-    -- Spawner
-    let res = unzip (spawner (timer gstate) secs screenSize (Pt (fromIntegral (xScreen `div` 2)) randomY))
+    -- Spawner for both enemies and background elements
+    let res = unzip (spawner (timer gstate) secs screenSize (Pt (fromIntegral (xScreen `div` 2) + xmargin) randomY))
     let newTimeFreq = fst res
-    let newEnemies = catMaybes (snd res)
+    let newEntities = catMaybes (snd res)
+    let newEnemies = filter (\e -> entityType e `elem` [Swarm, Turret, Brute]) newEntities
+    let newBg = filter (\e -> entityType e `elem` [Cloud, Planet, Mountain]) newEntities
 
 
-    -- check if any bullet hits an enemy and moves the bullet
-    let movedPlayer = movementHandler (S.toList (keys gstate)) (screenSize) (player gstate) -- move the player
-    let movedBullets = mapMaybe (\bullet -> bulletHit bullet (enemies gstate)) (map moveBullet bts) -- move the bullets and check if they should be discarded
-    let removeOffscreenBullets = bulletOffscreen movedBullets screenSize
-    let bulletHandlerRes = bulletHandler (keys gstate) secs movedPlayer -- add new bullets based on the weapon and rate (and amount maybe)
-    let newBullets = snd bulletHandlerRes
-    let newPlayerTimer = fst bulletHandlerRes
-    let updatedPlayer = movedPlayer {bullets = newBullets ++ removeOffscreenBullets, playerTimer = newPlayerTimer} -- update them for the player
+    let movedPlayer = movementHandler (keys gstate) screenSize (player gstate)
+
+    
+    let movedBullets = map moveEntity (bullets movedPlayer)
+    let removeOffscreenBullets = entityOffscreen movedBullets screenSize 
+    let bulletHandlerRes = bulletHandler (keys gstate) secs movedPlayer 
+    let updatedPlayer = movedPlayer {bullets = removeOffscreenBullets ++ snd bulletHandlerRes, rate = fst bulletHandlerRes}
 
 
-    -- Handle the enemies
-    let moveEnemies = map (moveEnemy) (enemies gstate) -- move the enemies
-    let updatedEnemies = map (damageEnemy (map moveBullet bts)) moveEnemies -- damage the enemies
-    let splitEnemiesRes = splitEnemies updatedEnemies [] [] -- start with 0 alive/dead enemies
-    let removeOffscreenEnemies = enemyOffscreen (fst splitEnemiesRes) screenSize -- remove offscreen alive enemies
-    let enemyBts = unzip (map (enemyFire updatedPlayer secs) removeOffscreenEnemies)
-    let moveEnemyBullets = map moveBullet (enemyBullets gstate)
-    let updatedScore = score gstate + calcScore (snd splitEnemiesRes)
+    -- Handle damage between entities and the player
+    let movedEntities = map moveEntity (enemies gstate)
+    let onScreenEntities = entityOffscreen movedEntities screenSize
+
+    let collisions = collissionCheck onScreenEntities updatedPlayer 
+
+    let splitAliveDeadRes = splitAliveDead (fst collisions)
 
 
+    -- Split bullets for the player
+    let splitPlayerBullets = splitAliveDead (bullets (snd collisions))
+    -- Only keep the alive bullets
+    let updatedPlayer2 = (snd collisions) {bullets = fst splitPlayerBullets} 
+
+    -- Spawn explosions when rockets and worms die
+    let explosions = necroSpawner (snd splitPlayerBullets ++ snd splitAliveDeadRes) secs
+    let hitexp = hitSplosion (fst splitAliveDeadRes) secs
+
+    -- Tabulate the score based on the dead entities
+    let updatedScore = score gstate + calcScore (snd splitAliveDeadRes) 
+
+    let entityFireBts = unzip (map (enemyFire updatedPlayer2 secs) hitexp)
 
 
-    return (gstate { infoToShow = ShowANumber 0
+    let resBg = updateBackgroundEntities gstate screenSize
+
+    -- Update the status based on the health of the player
+    let statusUpdate = if health (snd collisions) <= 0 then GameOver else status gstate
+
+    return (gstate { status = statusUpdate
+    , infoToShow = ShowANumber (round (health updatedPlayer2))
     , elapsedTime = elapsedTime gstate + secs
-    , player = updatedPlayer
-    , enemies = fst enemyBts ++ newEnemies
-    , enemyBullets = moveEnemyBullets ++ flatten (snd enemyBts)
+    , player = updatedPlayer2
+    , enemies = fst entityFireBts ++ concat (snd entityFireBts) ++ newEnemies ++ explosions
+    , background = resBg ++ newBg
     , timer = newTimeFreq
     , score = updatedScore })
+
+-- | General update function for background entities
+updateBackgroundEntities :: GameState -> (Int, Int) -> [Entity]
+updateBackgroundEntities gstate screenSize = movedBg
   where
-    (P p w v l (t, f) bts) = player gstate
-
-flatten :: [[a]] -> [a]
-flatten [] = []
-flatten [a] = a
-flatten (h:t) = h ++ flatten t
-
--- laser dynamics
-bulletHandler :: Set Char -> Float -> Player -> ((Time, Freq), [Bullet])
-bulletHandler set secs p
-    | S.member '.' set && t >= f = ((0, f), [getBullet we (Pt x y)])
-    | otherwise = ((t + secs, f), [])
-  where
-    (Pt x y) = fst (hitBox p)
-    we = weapon p
-    (t, f) = playerTimer p
-
--- beetje randomizen
-enemyFire :: Player -> Float -> Enemy -> (Enemy, [Bullet])
-enemyFire player secs e
-  | t >= f = (e {enemyRate = (0, f)}, b)
-  | otherwise = (e {enemyRate = (t + secs, f)}, [])
-  where
-    (t, f) = enemyRate e
-    ePos@(Pt xe ye) = fst (enemyHitBox e)
-    (Pt xp yp) = fst (hitBox player)
-    xdif = xp - xe
-    ydif = yp - ye
-    c = sqrt(xdif ^ 2 + ydif^2)
-    d@(dx, dy) = (xdif * 4 / c, ydif * 4 / c)
-    -- d@(dx, dy) = (4 * (xdif / (xdif + ydif)), 4 * (ydif / (xdif + ydif))) -- let op dat je niet door 0 deelt als je op de vijand staat
-    -- incorporate the direction of the bullets based on the position of the player, maybe bullets taht move like snakes?
-    b = case enemySpecies e of
-        Swarm -> [Bullet Pea (ePos, 10) 5 d]
-        Worm -> [] 
-        Turret -> [Bullet Pea (ePos, 10) 5 d, Bullet Pea (ePos, 10) 5 d]
-        Boss -> [Bullet Rocket (ePos, 10) 5 d]
-        -- Swarm -> [Vomit, Vomit]
-        -- Worm -> []
-        -- Turret -> [Vermin]
-        -- Boss -> [Globs]
+    remOffScreen = entityOffscreen (background gstate) screenSize
+    movedBg = map moveEntity remOffScreen
 
 
--- define the movements of the bullets of the player
-moveBullet :: Bullet -> Bullet
-moveBullet b = b {bulletHitbox = (Pt (x + fst (bulletSpeed b)) (y + snd (bulletSpeed b)), snd (bulletHitbox b))}
+-- | Check if the player or enemies get hit by bullets and damage them if necessary
+collissionCheck :: [Entity] -> Player -> ([Entity], Player)
+collissionCheck [] p = ([], p)
+collissionCheck enms@(e:es) p = (damageEnt2, damagePlayer {bullets = damagePlayerBullets})
     where
-      (Pt x y) = fst (bulletHitbox b) -- not sure that this is the right way, maybe different bullets move differently
+      damagePlayer = collisionDamage enms p -- damage the player takes from colliding with entities
+      damagePlayerBullets = map (collisionDamage enms) (bullets p) -- damage the bullets from the player
+      damageEnt = map (collisionDamage (bullets p)) enms -- damage the entities take from bullets of the player
+      damageEnt2 = map (collisionDamage [p]) damageEnt -- damage the entities take from the player from colliding
 
+-- | Damage entities when they collide with another entity
+collisionDamage :: [Entity] -> Entity -> Entity
+collisionDamage [] e2 = e2
+collisionDamage (e:es) e2
+    | hitboxOverlap (hitbox e) (hitbox e2) = collisionDamage es (e2 {health = health e2 - damage e})
+    | otherwise = collisionDamage es e2
 
--- define movement of the enemies this needs to be more complex. think sine waves or diagonals or something alike
-moveEnemy :: Enemy -> Enemy
-moveEnemy e = e {enemyHitBox = (Pt (x - xdif) (y- ydif), snd (enemyHitBox e))}
-  where
-    (Pt x y) = fst (enemyHitBox e)
-    f :: Float -> Float
-    f a = 1 * sin (1/(10 * 2*pi) * (a - xdif))
-
-    (xdif, ydif) = case enemySpecies e of
-      Swarm -> (3, f x)
-      Turret -> (3, 0)
-      Worm -> (3, f x)
-      Boss -> (3, f x) -- deze beweegt toch niet?
-
-
-
--- | check if any bullets hit an enemy and degrade its health
-damageEnemy :: [Bullet] -> Enemy -> Enemy
-damageEnemy [] e = e
-damageEnemy (b:bts) e
-  -- | ptInSquare b e = damageEnemy bts (e { enemyHealth = enemyHealth e - bulletDamage b }) -- werkt dit zo?
-  | hitBoxOverlap (bulletHitbox b) (enemyHitBox e) = damageEnemy bts (e { enemyHealth = enemyHealth e - bulletDamage b })
-  | otherwise = damageEnemy bts e
-
--- damagePlayer :: Player -> [Bullet] -> Bullet
-
--- split the list of enemies into a list of alive enemies and dead ones
-splitEnemies :: [Enemy] -> [Enemy] -> [Enemy] -> ([Enemy], [Enemy]) -- maybe define new types to distinguish better what each list represents
-splitEnemies [] alive dead = (alive, dead)
-splitEnemies (e:es) alive dead
-    | enemyHealth e <= 0 = splitEnemies es alive (e:dead)
-    | otherwise = splitEnemies es (e:alive) dead
-
-
-spawner :: [TimerFreq] -> Float -> (Int, Int) -> Pos -> [(TimerFreq, Maybe Enemy)]
-spawner [] _ _ _ = []
-spawner ((T name time freq):r) secs screen@(xScreen, yScreen) p 
-    | time >= freq = ((T name 0 freq), Just enemy) : spawner r secs screen p
-    | otherwise = ((T name (time + secs) freq), Nothing) : spawner r secs screen p
-    where
-      enemy = case name of
-        "Swarm" -> Enemy Swarm 3 (p, 20) (0, 1)
-        "Turret" -> Enemy Turret 100000000 (Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2)), 30) (0, 3)
-        "Worm" -> Enemy Worm 5 (p, 30) (0, 2)
-        -- baseer het spawnen van de boss op de score, misschien een if then else gebruiken om alleen een boss te spawnen als de score zo hoog is en anders gewone enemies te spawnen.
-
--- bossFight :: [] -> Score
--- baseer het aantal enemies wat spawnt op de score en het hp van de boss
-
-calcScore :: [Enemy] -> Score
-calcScore [] = 0
-calcScore (e:es)
-  | enemyHealth e <= 0 = points + calcScore es
-  | otherwise = calcScore es
-  where
-    points = case enemySpecies e of
-              Swarm -> 5 -- how should I define this properly? things like globally defined variables in packages
-              Turret -> 10
-              Worm -> 15
-              Boss -> 50
-
-
-
-movementHandler :: [Char] -> (Int, Int) -> Player -> Player
-movementHandler [] s p = p
-movementHandler (c:chars) s@(xScreen, yScreen) p = movementHandler chars s newPlayer
-  where
-    (Pt x y) = fst (hitBox p)
-    newPlayer = case c of
-      'w' -> p {hitBox = ((Pt x (y + 8)), snd (hitBox p))}
-      'a' -> p {hitBox = ((Pt (x - 8) y), snd (hitBox p))}
-      's' -> p {hitBox = ((Pt x (y - 8)), snd (hitBox p))}
-      'd' -> p {hitBox = ((Pt (x + 8) y), snd (hitBox p))}
-      _ -> p -- if it gets a key it doesnt understand ignore it (redundant if well implemented)
-
--- | Check if any of the bullets hit an enemy and destroy the bullet, do nothing with the enemy
-bulletHit :: Bullet -> [Enemy] -> Maybe Bullet
-bulletHit bullet [] = Just bullet -- keep bullet if it hits no enemies
-bulletHit bullet (enemy : enemies)
-  | hitBoxOverlap (bulletHitbox bullet) (enemyHitBox enemy) = Nothing -- discard the bullet if it is in the hitbox of the enemy
-  | otherwise = bulletHit bullet enemies -- otherwise recurse
-
--- misschien size een (Float, Float) maken zodat je ook rechthoeken/balken kunt hebben
-hitBoxOverlap :: HitBox -> HitBox -> Bool
-hitBoxOverlap ((Pt x1 y1), s1) ((Pt x2 y2), s2) = 
-  x1 < x2 + s2 && 
+-- | Check if two hitboxes overlap
+hitboxOverlap :: HitBox -> HitBox -> Bool
+hitboxOverlap ((Pt x1 y1), s1) ((Pt x2 y2), s2) =
+  x1 < x2 + s2 &&
   y1 < y2 + s2 &&
   x2 < x1 + s1 &&
   y2 < y1 + s1
 
--- check if a point is in a square for bullets, may need altering for bigger hitboxes for bullets, do we just define the size of the bullets? or base it off of the weapon/bullet used
--- ptInSquare :: Bullet -> Enemy -> Bool
--- ptInSquare b e = xb <= xe + s + margin && xe - margin <= xb && yb <= ye + s + margin && ye - margin <= yb
---     where
---       (Pt xb yb) = bulletPosition b
---       s = enemySize e
---       (Pt xe ye) = enemyPosition e
---       margin = bulletSize b
+-- | Spawn explosions when rockets and worms die
+necroSpawner :: [Entity] -> Float -> [Entity]
+necroSpawner es secs= concatMap (\e -> [E Explosion (21 * secs) (fst (hitbox e), 20) None 5 (0, 0) (0, -1) [] | entityType e `elem` [Rocket, Brute]]) es
+
+-- | Does damage to every explosion that exist to  
+hitSplosion :: [Entity] -> Float -> [Entity]
+hitSplosion es dmg = other ++ map (\e -> e {health = health e - dmg, hitbox = (fst (hitbox e), 4 * health e)}) explosions
+    where
+      explosions = filter (\e -> entityType e == Explosion) es
+      other = filter (\e -> entityType e /= Explosion) es
+
+-- | Split a list of entities into a list of alive ones and dead ones
+splitAliveDead :: [Entity] -> ([Entity], [Entity])
+splitAliveDead es = (alive, dead)
+    where
+      dead = filter (\e -> health e <= 0) es
+      alive = filter (\e -> health e > 0) es
 
 
+
+-- | Move the player according to their input
+movementHandler :: [Char] -> (Int, Int) -> Player -> Player
+movementHandler [] s p = p
+movementHandler (c:chars) s@(xScreen, yScreen) p = movementHandler chars s newPlayer
+  where
+    (Pt x y) = fst (hitbox p)
+    newPlayer = case c of
+      'w' -> p {hitbox = (Pt x (min (y + 8) (fromIntegral (yScreen `div` 2))), snd (hitbox p))}
+      'a' -> p {hitbox = (Pt (max (x - 8) (-fromIntegral (xScreen `div` 2))) y, snd (hitbox p))}
+      's' -> p {hitbox = (Pt x (max (y - 8) (-fromIntegral (yScreen `div` 2))), snd (hitbox p))}
+      'd' -> p {hitbox = (Pt (min (x + 8) (fromIntegral (xScreen `div` 2))) y, snd (hitbox p))}
+      _ -> p -- if it gets a key it doesnt understand ignore it
+
+-- | Move an entity
+moveEntity :: Entity -> Entity
+moveEntity e = e {hitbox = (newPt, s)}
+    where
+        (Pt x y, s)= hitbox e
+        (dx, dy) = direction e
+        newPt = if entityType e `elem` [Swarm, Brute] then Pt (x - dx) (y - f (x - dx)) else Pt (x - dx) (y - dy) -- use the function defined in the gamemechanics for the swarms
+
+
+-- | Spawn entities based on their respective timers and frequencies
+spawner :: [TimerFreq] -> Float -> (Int, Int) -> Pos -> [(TimerFreq, Maybe Entity)]
+spawner timers secs (xScreen, yScreen) p = 
+  map (\(T name time freq) -> 
+    if time >= freq
+      then (T name 0 freq, getEntity name) 
+      else (T name (time + secs) freq, Nothing)) timers
+    where
+      getEntity :: EntityTypes -> Maybe Entity
+      getEntity name = case name of
+                Swarm -> Just (E Swarm 3 (p, swarmSize) Peashooter 1 (2, 0) (0, swarmRoF) [])
+                Turret -> Just (E Turret 100000000 (Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2)), turretSize) Peashooter 1 (2, 0) (0, turretRoF) [])
+                Brute -> Just (E Brute 5 (p, bruteSize) Peashooter 1 (2, 0) (0, bruteRoF) [])
+                --background entities
+                Cloud -> Just (E Cloud 1 (p, cloudSize) None 0 (3, 0) (0, -1) [])
+                Mountain -> Just (E Mountain 1 ((Pt (fromIntegral (xScreen `div` 2)+mountainSize) (- fromIntegral (yScreen `div` 2))), mountainSize) None 0 (1, 0) (0, -1) [])
+                Planet -> Just (E Planet 1 (p, planetSize) None 0 (0.5, 0) (0, -1) [])
+                _ -> Nothing
+
+
+-- | Shoot new bullets based on the weapon and rate and update the timer
+bulletHandler :: String -> Float -> Player -> ((Time, Freq), [Bullet])
+bulletHandler keys secs p
+    | charMember '.' keys && t >= f = ((0, f), [getBullet we (Pt x y)])
+    | otherwise = ((t + secs, f), [])
+  where
+    (Pt x y) = fst (hitbox p)
+    we = weapon p
+    (t, f) = rate p
+    
+-- | Let the enemies fire bullets
+enemyFire :: Player -> Float -> Entity -> (Entity, [Bullet])
+enemyFire player secs e
+  | t >= f = (e {rate = (0, f)}, b)
+  | otherwise = (e {rate = (t + secs, f)}, [])
+  where
+    (t, f) = rate e
+    ePos@(Pt xe ye) = fst (hitbox e)
+     -- Let the enemies shoot toward the player
+    (Pt xp yp) = fst (hitbox player)
+    xdif = xp - xe
+    ydif = yp - ye
+    c = sqrt (xdif ^ 2 + ydif^2)
+    d@(dx, dy) = (-xdif * 4 / c,-ydif * 4 / c)
+    pea d = E Pea 1 (ePos, 10) None 1 d (0, -1) [] -- standard pea bullet format where only a direction needs to be added
+    b = case entityType e of
+        Swarm -> [pea d]
+        Brute -> [pea (2, 2), pea (-2, 2), pea (-2, -2), pea (2, -2)]
+        Turret -> [pea d, pea d]
+        _ -> []
+
+-- | Retrieve the bullet associated with a certain weapon
 getBullet :: Weapon -> Pos -> Bullet
-getBullet Peashooter p = Bullet Pea (p, 5) 5 (8, 0)
-getBullet Launcher p = Bullet Rocket (p, 10) 10 (8, 0) 
-getBullet Laser p = Bullet Laserbeam (p, 10) 40 (8, 0)       -- alter the way this works, meaning also having to alter bulletmovements
+getBullet Peashooter p = E Pea 1 (p, 5) None 5 (-8, 0) (0, -1) []
+getBullet Launcher p = E Rocket 1 (p, 10) None 5 (-8, 0) (0, -1) []
+getBullet Laser p = E Laserbeam 1 (p, 10) None 5 (-8, 0) (0, -1) []   
 
+-- | Change from a weapon to another weapon
 switchWeapon :: Weapon -> Weapon
 switchWeapon Peashooter = Launcher
 switchWeapon Launcher = Laser
 switchWeapon Laser = Peashooter
 
 
+-- | Calculate the score based on a list of dead enemies
+calcScore :: [Enemy] -> Score
+calcScore [] = 0
+calcScore (e:es)
+  | health e <= 0 = points + calcScore es
+  | otherwise = calcScore es
+  where
+    points = case entityType e of
+              Swarm -> 5
+              Turret -> 10
+              Brute -> 15
+              _ -> 0
+
+
 -- | Handle user input
 input :: Event -> GameState -> IO GameState
-input e gstate = return (inputKey e gstate)
+input e gstate
+  | isEsc = error "Game Exited"
+  | status gstate == StartScreen = inputKeyStart e gstate
+  | status gstate == Game = inputKeyGame e gstate
+  | status gstate == Pause = inputKeyPause e gstate
+  | status gstate == GameOver = inputKeyGameOver e gstate
+  | otherwise = return gstate
+  where
+    (EventKey k s m p) = e
+    isEsc = (EventKey (SpecialKey KeyEsc) s m p) == e
 
--- | Handle movements which can be held
-inputKey :: Event -> GameState -> GameState
-inputKey (EventKey (Char c) Down _ _) gstate 
-  | c == 'w' || c=='a' || c=='s' || c=='d' = gstate {keys = S.insert c (keys gstate)} -- may need to specify which keys are possible
-  | otherwise = gstate
-inputKey (EventKey (Char c) Up _ _) gstate = gstate {keys = S.delete c (keys gstate)}
+-- | Handle input at the start menu
+inputKeyStart :: Event -> GameState -> IO GameState
+inputKeyStart (EventKey (SpecialKey KeyEnter) Down _ _) gstate = return initialState {status = Game}
+inputKeyStart (EventKey (Char '1') Down _ _) gstate =
+  do
+    files <- getDirectoryContents "saveFiles/"
+    let firstFile = head files
+    if length files > 2 
+      then do 
+        fileGstate <- readGameState ("saveFiles/" ++ firstFile)
+        return (fromJust fileGstate)
+      else return gstate
+inputKeyStart e gstate = return gstate
 
+
+-- | Handle movements which can be held during the game
+inputKeyGame :: Event -> GameState -> IO GameState
+inputKeyGame (EventKey (Char c) Down _ _) gstate | c == 'w' || c=='a' || c=='s' || c=='d' = return gstate {keys = insertChar c (keys gstate)}
+inputKeyGame (EventKey (Char c) Up _ _) gstate = return gstate {keys = deleteChar c (keys gstate)}
+inputKeyGame (EventKey (Char 'p') Down _ _) gstate = return gstate {keys="",status = Pause}
 -- | Shoot bullets!
-inputKey (EventKey (SpecialKey KeySpace) Down _ _) gstate = gstate { keys = S.insert '.' (keys gstate)}
-inputKey (EventKey (SpecialKey KeySpace) Up _ _) gstate = gstate { keys = S.delete '.' (keys gstate)}
-
+inputKeyGame (EventKey (SpecialKey KeySpace) Down _ _) gstate = return gstate { keys = insertChar '.' (keys gstate)}
+inputKeyGame (EventKey (SpecialKey KeySpace) Up _ _) gstate = return gstate { keys = deleteChar '.' (keys gstate)}
 -- | Switch weapon when possible
-inputKey (EventKey (SpecialKey KeyTab) Down _ _) gstate
-  = gstate { infoToShow = ShowAString "SW", player = P hb newWe vel l (0, newF) b } -- switch weapon
+inputKeyGame (EventKey (SpecialKey KeyTab) Down _ _) gstate
+  = return gstate {player = (player gstate) {weapon = newWe, rate = (0, newF)} }
     where
-      (P hb we vel l (t, f) b) = player gstate
+      (E et health hb we dmg dir (t, f) b) = player gstate
       newWe = switchWeapon we
       newF = case newWe of
         Peashooter -> 0.5
         Launcher -> 1
-        Laser -> 0.1 -- lastig dit zeg tering
+        Laser -> 0.1
+inputKeyGame e gstate = return gstate
 
-inputKey (EventKey (SpecialKey KeyEsc) _ _ _) gstate = error "Game exited"
-inputKey _ gstate = gstate -- Otherwise keep the same
+-- | Handle input during a pause
+inputKeyPause (EventKey (Char 'p') Down _ _) gstate = return gstate {status = Game}
+inputKeyPause (EventKey (Char 'r') Down _ _) gstate = return initialState
+inputKeyPause (EventKey (Char 's') Down _ _) gstate =
+    if status gstate == Pause
+    then do
+      writeGameState "saveFiles/save1.json" (gstate {keys = ""}) -- currently only one saveslot
+      putStrLn "SAVING YOUR GAME MAN"
+      return gstate {infoToShow = ShowAString "Saving"}
+    else return gstate
+inputKeyPause e gstate = return gstate
+
+-- | Handle keys at game over
+inputKeyGameOver (EventKey (Char 'r') _ _ _) gstate = return initialState
+inputKeyGameOver e gstate = return gstate
+
+-- Helper functions for held input
+insertChar :: Char -> String -> String
+insertChar c s 
+  | c `notElem` s = c : s
+  | otherwise = s
+deleteChar :: Char -> String -> String
+deleteChar char s = filter (char /=) s
+charMember :: Char -> String -> Bool
+charMember c s = c `elem` s
