@@ -1,9 +1,9 @@
 name:                Haskell-Game
 version:             0.1.0.0
-author:              Alejandro Serrano
-maintainer:          A.SerranoMena@uu.nl
+author:              Lex Klaassen and Viggo de Breij
+maintainer:          -
 category:            Game
-build-type:          Simple
+build-type:          Final
 cabal-version:       >=1.10
 
 
