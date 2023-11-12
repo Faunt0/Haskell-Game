@@ -31,7 +31,7 @@ initialPlayer :: Entity
 --initialPlayer = E Player 100 ((Pt 0 0), 10) Peashooter 50 (0, 0) (0, 0.5) []
 initialPlayer = E Player 5 (Pt 0 0, 10) Peashooter 50 (0, 0) (0, 0.5) []
 spawnRate :: [TimerFreq] -- kan niet in de enemy zelf omdat die niet nieuwe enimies kan spawnen
-spawnRate = [T Swarm 0 0.5, T Worm 0 5, T Turret 0 3, T Cloud 0 10] -- spawnrates of the different enemies, this can be adjusted based on the score.
+spawnRate = [T Swarm 0 0.5, T Worm 0 5, T Turret 0 3, T Cloud 0 2] -- spawnrates of the different enemies, this can be adjusted based on the score.
 
 
 
@@ -69,7 +69,8 @@ data Entity = E {
 } deriving (Generic, Show)
 
 data EntityTypes = 
-  Player | Worm | Swarm | Turret | Boss | Pea | Rocket | Laserbeam | Explosion 
+  Player | Worm | Swarm | Turret | Boss 
+  | Pea | Rocket | Laserbeam | Explosion 
   | Cloud | Mountain | Planet  -- background elements
   deriving (Generic, Show, Eq)
 data Weapon = None | Peashooter | Launcher | Laser deriving (Generic, Show)
@@ -98,10 +99,5 @@ writeGameState filePath gameState = do
   let json = encode gameState
   B.writeFile filePath json
 
--- readGameState :: FilePath -> IO (Either String GameState)
--- readGameState filePath = eitherDecodeFileStrict filePath
 readGameState :: FilePath -> IO (Maybe GameState)
 readGameState filePath = decodeFileStrict filePath
-  -- do
-  -- fileContents <- B.readFile filePath
-  -- return (decode fileContents)

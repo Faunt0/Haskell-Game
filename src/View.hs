@@ -17,7 +17,6 @@ view p gstate
   | status gstate == Game = pics p gstate
   | status gstate == Pause = pics p gstate
   | status gstate == GameOver = pics p gstate
-  -- does not need an otherwise since we've exhausted all cases of status
 
 startScreenPic :: IO Picture
 startScreenPic = do 
@@ -38,7 +37,7 @@ pics picturemap gstate = do
         , Translate 30 30 (viewPure gstate)] -- info to show -- score
         ++ entityPics bts picturemap -- player bullets
         ++ entityPics (enemies gstate) picturemap -- render enemies
-        ++ entityPics (flatten (Prelude.map bullets (enemies gstate))) picturemap++lives -- enemy bullets
+        ++ entityPics (concat (Prelude.map bullets (enemies gstate))) picturemap++lives -- enemy bullets
       ))
   where
     (Pt x y, s) = hitbox (player gstate)
@@ -119,5 +118,3 @@ viewPure gstate = case infoToShow gstate of
   ShowANumber n -> blank
   ShowAChar   c -> color green (text [c])
   ShowAString s -> color green (text s)
-
--- background elements

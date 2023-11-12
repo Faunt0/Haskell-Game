@@ -94,8 +94,11 @@ step secs gstate
 
     let entityFireBts = unzip (map (enemyFire updatedPlayer2 secs) hitexp) -- let the alive entities fire bullets and add them to the entities list
 
-    let noOffscreenBg = entityOffscreen (background gstate) screenSize
-    let movedBg = map moveEntity noOffscreenBg
+  
+    -- update the background elements
+    let resBg = updateBackgroundEntities gstate screenSize
+
+    -- new background entities
     let bgSpawnRes = unzip (backgroundSpawner newTimeFreq secs screenSize (Pt (fromIntegral (xScreen `div` 2) - margin) randomY))
     let newTimers = fst bgSpawnRes
     let newBg = catMaybes (snd bgSpawnRes)
@@ -107,19 +110,19 @@ step secs gstate
     , infoToShow = ShowANumber (round (health updatedPlayer2))
     , elapsedTime = elapsedTime gstate + secs
     , player = updatedPlayer2
-    , enemies = fst entityFireBts ++ flatten (snd entityFireBts) ++ newEnemies ++ explosions
-    , background = movedBg ++ newBg
+    , enemies = fst entityFireBts ++ concat (snd entityFireBts) ++ newEnemies ++ explosions
+    , background = resBg ++ newBg
     , timer = newTimers
     , score = updatedScore })
 
 
--- eigelijk hetzelfde als concat, vervang dit
-flatten :: [[a]] -> [a]
-flatten [] = []
-flatten [a] = a
-flatten (h:t) = h ++ flatten t
+updateBackgroundEntities :: GameState -> (Int, Int) -> [Entity]
+updateBackgroundEntities gstate screenSize = movedBg
+  where
+    remOffScreen = entityOffscreen (background gstate) screenSize
+    movedBg = map moveEntity remOffScreen
 
--- laser dynamics?
+
 bulletHandler :: String -> Float -> Player -> ((Time, Freq), [Bullet])
 bulletHandler keys secs p
     | charMember '.' keys && t >= f = ((0, f), [getBullet we (Pt x y)])
@@ -146,7 +149,7 @@ collisionDamage (e:es) e2
     | otherwise = collisionDamage es e2
 
 necroSpawner :: [Entity] -> Float -> [Entity]
-necroSpawner es secs= flatten (map (\e -> [E Explosion (21 * secs) (fst (hitbox e), 20) None 5 (0, 0) (0, -1) [] | entityType e == Rocket]) es)
+necroSpawner es secs= concat (map (\e -> [E Explosion (21 * secs) (fst (hitbox e), 20) None 5 (0, 0) (0, -1) [] | entityType e == Rocket]) es)
 
 hitExplosions2 :: [Entity] -> Float -> [Entity]
 hitExplosions2 es dmg = other ++ map (\e -> e {health = health e - dmg, hitbox = (fst (hitbox e), 4 * health e)}) explosions
