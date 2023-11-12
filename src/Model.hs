@@ -31,8 +31,8 @@ initialPlayer :: Entity
 --initialPlayer = E Player 100 ((Pt 0 0), 10) Peashooter 50 (0, 0) (0, 0.5) []
 initialPlayer = E Player 5 (Pt 0 0, 10) Peashooter 50 (0, 0) (0, 0.5) []
 spawnRate :: [TimerFreq] -- kan niet in de enemy zelf omdat die niet nieuwe enimies kan spawnen
--- spawnRate = [T Swarm 0 0.5, T Worm 0 5, T Turret 0 3, T Cloud 0 2,T Mountain 0 6,T Planet 0 10] -- spawnrates of the different enemies, this can be adjusted based on the score.
-spawnRate = [T Swarm 0 4, T Worm 0 5, T Turret 0 9, T Cloud 0 5, T Mountain 0 10, T Planet 0 7] 
+-- spawnRate = [T Swarm 0 0.5, T Brute 0 5, T Turret 0 3, T Cloud 0 2,T Mountain 0 6,T Planet 0 10] -- spawnrates of the different enemies, this can be adjusted based on the score.
+spawnRate = [T Swarm 0 4, T Brute 0 5, T Turret 0 9, T Cloud 0 5, T Mountain 0 10, T Planet 0 7] 
 
 
 
@@ -70,7 +70,7 @@ data Entity = E {
 } deriving (Generic, Show)
 
 data EntityTypes = 
-  Player | Worm | Swarm | Turret | Boss 
+  Player | Brute | Swarm | Turret 
   | Pea | Rocket | Laserbeam | Explosion 
   | Cloud | Mountain | Planet  -- background elements
   deriving (Generic, Show, Eq)

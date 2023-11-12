@@ -2,6 +2,7 @@
 module Offscreen where
 
 import Model
+import GameMechanics
 
 -- may want to add a margin so the enemy does not immediately despawn the second it hits the edge of the screen
 entityOffscreen :: [Entity] -> (Int, Int) -> [Entity]
@@ -14,6 +15,5 @@ entityOffscreen (e:bts) (x, y)
       (Pt ex ey) = fst (hitbox e)
       margin = 0
       isbullet = elem (entityType e) [Pea, Rocket, Laserbeam]
-      offscreen_Xaxis = ex >= fromIntegral (x `div` 2) + 100 - margin || ex <= - fromIntegral (x `div` 2) + margin
-      -- offscreen_Xaxis = ex <= - fromIntegral (x `div` 2) + margin
+      offscreen_Xaxis = ex >= fromIntegral (x `div` 2) + xmargin || ex <= - fromIntegral (x `div` 2) - xmargin
       offscreen_Yaxis = False --ey >= fromIntegral (y `div` 2) - margin || ey <= - fromIntegral (y `div` 2) + margin

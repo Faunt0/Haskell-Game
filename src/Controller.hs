@@ -63,10 +63,10 @@ step secs gstate
 
 
     -- Spawner for both enemies and background elements
-    let res = unzip (spawner (timer gstate) secs (score gstate) screenSize (Pt (fromIntegral (xScreen `div` 2) - margin) randomY))
+    let res = unzip (spawner (timer gstate) secs screenSize (Pt (fromIntegral (xScreen `div` 2) + xmargin) randomY))
     let newTimeFreq = fst res
     let newEntities = catMaybes (snd res)
-    let newEnemies = filter (\e -> entityType e `elem` [Swarm, Turret, Worm]) newEntities
+    let newEnemies = filter (\e -> entityType e `elem` [Swarm, Turret, Brute]) newEntities
     let newBg = filter (\e -> entityType e `elem` [Cloud, Planet, Mountain]) newEntities
 
 
@@ -92,7 +92,7 @@ step secs gstate
     let somenoame = splitAliveDead (bullets (snd collisions))-- split bullets for the player
     let updatedPlayer2 = (snd collisions) {bullets = fst somenoame} -- only keep the alive bullets
     let explosions = necroSpawner (snd somenoame ++ snd splitAliveDeadRes) secs -- spawn explosions when rockets and worms die
-    let hitexp = hitExplosions2 (fst splitAliveDeadRes) secs -- hit all the explosions with certain damage
+    let hitexp = hitSplosion (fst splitAliveDeadRes) secs -- hit all the explosions with certain damage
     let updatedScore = score gstate + calcScore (snd splitAliveDeadRes) -- tabulate the score based on the dead entities
 
     let entityFireBts = unzip (map (enemyFire updatedPlayer2 secs) hitexp) -- let the alive entities fire bullets and add them to the entities list
@@ -124,7 +124,7 @@ updateBackgroundEntities gstate screenSize = movedBg
     remOffScreen = entityOffscreen (background gstate) screenSize
     movedBg = map moveEntity remOffScreen
 
-
+-- shoot
 bulletHandler :: String -> Float -> Player -> ((Time, Freq), [Bullet])
 bulletHandler keys secs p
     | charMember '.' keys && t >= f = ((0, f), [getBullet we (Pt x y)])
@@ -151,21 +151,16 @@ collisionDamage (e:es) e2
     | otherwise = collisionDamage es e2
 
 necroSpawner :: [Entity] -> Float -> [Entity]
-necroSpawner es secs= concatMap (\e -> [E Explosion (21 * secs) (fst (hitbox e), 20) None 5 (0, 0) (0, -1) [] | entityType e `elem` [Rocket, Worm]]) es
+necroSpawner es secs= concatMap (\e -> [E Explosion (21 * secs) (fst (hitbox e), 20) None 5 (0, 0) (0, -1) [] | entityType e `elem` [Rocket, Brute]]) es
 
-hitExplosions2 :: [Entity] -> Float -> [Entity]
-hitExplosions2 es dmg = other ++ map (\e -> e {health = health e - dmg, hitbox = (fst (hitbox e), 4 * health e)}) explosions
+-- | Does damage to every explosion that exist to  
+hitSplosion :: [Entity] -> Float -> [Entity]
+hitSplosion es dmg = other ++ map (\e -> e {health = health e - dmg, hitbox = (fst (hitbox e), 4 * health e)}) explosions
     where
       explosions = filter (\e -> entityType e == Explosion) es
       other = filter (\e -> entityType e /= Explosion) es
 
-
--- moet ik hier nog iets doen over dat een dode raket een explosie kan veroorzaken? of een kamikaze een explosie veroorzaakt
-removeDead :: [Entity] -> [Entity]
-removeDead es = filter (\e -> health e > 0) es
-
-
--- bit more intuitive than the other splitEntities function
+-- | Split a list of entities into a list of alive ones and dead ones
 splitAliveDead :: [Entity] -> ([Entity], [Entity])
 splitAliveDead es = (alive, dead)
     where
@@ -173,7 +168,7 @@ splitAliveDead es = (alive, dead)
       alive = filter (\e -> health e > 0) es
 
 
--- | the enemies fire their bullets
+-- | Let the enemies fire bullets
 enemyFire :: Player -> Float -> Entity -> (Entity, [Bullet])
 enemyFire player secs e
   | t >= f = (e {rate = (0, f)}, b)
@@ -186,12 +181,11 @@ enemyFire player secs e
     ydif = yp - ye
     c = sqrt (xdif ^ 2 + ydif^2)
     d@(dx, dy) = (-xdif * 4 / c,-ydif * 4 / c)
-
+    pea d = E Pea 1 (ePos, 10) None 1 d (0, -1) [] -- standard pea bullet format where only a direction needs to be added
     b = case entityType e of
-        Swarm -> [E Pea 1 (ePos, 10) None 1 d (0, -1) []]
-        Worm -> []
-        Turret -> [E Pea 1 (ePos, 10) None 1 d (0, -1) [], E Pea 1 (ePos, 10) None 5 d (0, -1) []]
-        Boss -> [E Rocket 1 (ePos, 10) None 1 d (0, -1) []]
+        Swarm -> [pea d]
+        Brute -> [pea (2, 2), pea (-2, 2), pea (-2, -2), pea (2, -2)]
+        Turret -> [pea d, pea d]
         _ -> []
 
 
@@ -200,7 +194,7 @@ moveEntity e = e {hitbox = (newPt, s)}
     where
         (Pt x y, s)= hitbox e
         (dx, dy) = direction e
-        newPt = if entityType e `elem` [Swarm, Worm] then Pt (x - dx) (y - f (x - dx)) else Pt (x - dx) (y - dy) -- use the function defined in the gamemechanics for the swarms
+        newPt = if entityType e `elem` [Swarm, Brute] then Pt (x - dx) (y - f (x - dx)) else Pt (x - dx) (y - dy) -- use the function defined in the gamemechanics for the swarms
 
 
 
@@ -212,43 +206,23 @@ splitEntities (e:es) alive dead
     | otherwise = splitEntities es (e:alive) dead
 
 
-spawner :: [TimerFreq] -> Float -> Score -> (Int, Int) -> Pos -> [(TimerFreq, Maybe Entity)]
-spawner timers secs score (xScreen, yScreen) p = 
+spawner :: [TimerFreq] -> Float -> (Int, Int) -> Pos -> [(TimerFreq, Maybe Entity)]
+spawner timers secs (xScreen, yScreen) p = 
   map (\(T name time freq) -> 
     if time >= freq
       then (T name 0 freq, getEntity name) 
       else (T name (time + secs) freq, Nothing)) timers
     where
       getEntity :: EntityTypes -> Maybe Entity
-      getEntity name
-          | score > 500 = Just (E Boss 5 (Pt 600 100, wormSize) Peashooter 50 (0, 0) (0, wormRoF) []) -- misschien niet hier, maak aparte boss functie met aparte spawners enzo en waves gebaseerd op zn health. moet er maar eentje spawnen en dan niet andere enemies
-          | otherwise = case name of
+      getEntity name = case name of
                 Swarm -> Just (E Swarm 3 (p, swarmSize) Peashooter 1 (2, 0) (0, swarmRoF) [])
                 Turret -> Just (E Turret 100000000 (Pt (fromIntegral (xScreen `div` 2)) (0 - fromIntegral (yScreen `div` 2)), turretSize) Peashooter 1 (2, 0) (0, turretRoF) [])
-                Worm -> Just (E Worm 5 (p, wormSize) Peashooter 1 (2, 0) (0, wormRoF) [])
+                Brute -> Just (E Brute 5 (p, bruteSize) Peashooter 1 (2, 0) (0, bruteRoF) [])
                 --background entities
                 Cloud -> Just (E Cloud 1 (p, cloudSize) None 0 (3, 0) (0, -1) [])
                 Mountain -> Just (E Mountain 1 ((Pt (fromIntegral (xScreen `div` 2)) (- fromIntegral (yScreen `div` 2))), mountainSize) None 0 (1, 0) (0, -1) [])
                 Planet -> Just (E Planet 1 (p, planetSize) None 0 (0.5, 0) (0, -1) [])
                 _ -> Nothing
-        -- baseer het spawnen van de boss op de score, misschien een if then else gebruiken om alleen een boss te spawnen als de score zo hoog is en anders gewone enemies te spawnen.
--- bossFight :: [] -> Score
--- baseer het aantal enemies wat spawnt op de score en het hp van de boss
-
-
--- backgroundSpawner :: [TimerFreq] -> Float -> (Int, Int) -> Pos -> [(TimerFreq, Maybe Entity)]
--- backgroundSpawner timers secs (xScreen, yScreen) (Pt x y) = 
---   map (\(T name time freq) -> 
---     if time >= freq && name `elem` [Cloud, Mountain, Planet]
---       then (T name 0 freq, getEntity name)
---       else (T name (time + secs) freq, Nothing)) timers
---     where
---       getEntity :: EntityTypes -> Maybe Entity
---       getEntity name = case name of
---         Cloud -> Just (E Cloud 1 ((Pt (x) y), cloudSize) None 0 (3, 0) (0, -1) [])
---         Mountain -> Just (E Mountain 1 ((Pt (x) (- fromIntegral (yScreen `div` 2))), mountainSize) None 0 (3, 0) (0, -1) [])
---         Planet -> Just (E Planet 1 ((Pt (x) y), planetSize) None 0 (3, 0) (0, -1) [])
---         _ -> Nothing
 
 
 calcScore :: [Enemy] -> Score
@@ -260,8 +234,7 @@ calcScore (e:es)
     points = case entityType e of
               Swarm -> 5 -- how should I define this properly? things like globally defined variables in packages
               Turret -> 10
-              Worm -> 15
-              Boss -> 50
+              Brute -> 15
               _ -> 0
 
 movementHandler :: [Char] -> (Int, Int) -> Player -> Player

@@ -18,39 +18,43 @@ view p gstate
   | status gstate == Pause = pausePic p gstate
   | status gstate == GameOver = pics p gstate
 
+-- Render the start menu
 startScreenPic :: Map String Picture -> IO Picture
 startScreenPic picturemap = do
   sz <- getScreenSize
   let sz2 = (fromIntegral (fst sz) ::Float, fromIntegral (snd sz) ::Float)
   files <- getDirectoryContents "saveFiles/"
   let firstFile = head files
+  -- Show the save file
   let filePic = ([Translate (-(fst sz2)/4) (- (snd sz2)/2.2) (scale 0.5 0.5 (color green (text ("[1] - " ++ remJson firstFile)))) | length files > 2])
+  -- Start screen text
   let p = [Translate (-(fst sz2)/6) ((snd sz2)/2.8) (scale 0.5 0.5 (color green (text "START MENU"))),Translate (-(fst sz2)/5) ((snd sz2)/4) (scale 0.3 0.3 (color green (text "PRESS ENTER TO START"))), Translate (-(fst sz2)/3.8) (- (snd sz2)/2.8) (color green (text "SAVE FILES:"))]
+  -- Game Title bitmap
   let titlePic = [picturemap ! "title"]
   return (Pictures (p ++ filePic ++ titlePic))
   where
     remJson :: String -> String
     remJson s = [s !! i | i <- [0..length s - 6]]
 
+-- Render the pause menu
 pausePic :: Map String Picture -> GameState -> IO Picture
 pausePic p gstate= do
-  let pausepic = [Translate (-200) (100) (color green (text "[P]AUSE")), Translate (-200) (-300) (scale 0.5 0.5 (color green (text "PRESS [R] TO RESET"))), Translate (-200) (-400) (scale 0.5 0.5 (color green (text "PRESS [S] TO RESET")))]
+  let pausepic = [Translate (-200) (100) (color green (text "[P]AUSE")), Translate (-200) (-300) (scale 0.5 0.5 (color green (text "PRESS [R] TO RESET"))), Translate (-200) (-400) (scale 0.5 0.5 (color green (text "PRESS [S] TO SAVE")))]
   let savedpic = if infoToShow gstate == ShowAString "Saving" then Translate (-500) 300 (color green (text "SAVED TO save1.JSON")) else Blank
-  gstatepic <- pics p (gstate {infoToShow = ShowNothing})
+  gstatepic <- pics p gstate
   return (Pictures (savedpic : gstatepic : pausepic))
 
 pics :: Map String Picture -> GameState -> IO Picture --using a gamestate and a map of all pictures, go through all entities and return the picture
 pics picturemap gstate = do
   lives <- displayStats gstate picturemap
   return (Pictures (
-        entityrendermoon (background gstate) picturemap ++
-        entityrendermountain (background gstate) picturemap ++
-        entityrendercloud (background gstate) picturemap++
-        [Translate x y (picturemap ! "ship") -- Player
-        , Translate 30 30 (viewPure gstate)] -- info to show -- score
-        ++ entityPics bts picturemap -- player bullets
-        ++ entityPics (enemies gstate) picturemap -- render enemies
-        ++ entityPics (concat (Prelude.map bullets (enemies gstate))) picturemap++lives -- enemy bullets
+        entityrendermoon (background gstate) picturemap
+        ++ entityrendermountain (background gstate) picturemap
+        ++ entityrendercloud (background gstate) picturemap
+        ++ [Translate x y (picturemap ! "ship")] -- Player
+        ++ entityPics bts picturemap -- Player bullets
+        ++ entityPics (enemies gstate) picturemap -- Enemies
+        ++ entityPics (concat (Prelude.map bullets (enemies gstate))) picturemap++lives -- Enemy bullets
       ))
   where
     (Pt x y, s) = hitbox (player gstate)
@@ -67,8 +71,7 @@ entityPics (entity:es) picturemap= Translate x y pic : entityPics es picturemap
             -- enemies
             Swarm -> picturemap ! "swarm"
             Turret -> scale 0.3 0.3 (picturemap ! "turret")
-            Worm -> scale 1.5 1.5 (picturemap ! "worm")
-            Boss -> color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)])
+            Brute -> scale 1.5 1.5 (picturemap ! "worm")
             Explosion -> explosionstate (health entity) picturemap
 
             -- bullets

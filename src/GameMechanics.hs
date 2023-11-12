@@ -2,8 +2,7 @@ module GameMechanics where
 
 fps :: Int
 fps = 60 
--- plaats om alle variabelen te dumpen
--- dit is een prima manier, dit is de b van y = ax + b wat handig is voor aanpassen als de score hoger wordt aangezien ik dan gewoon de formule kan intypen in de methode
+
 peashooterRate :: Float
 peashooterRate = 10
 peashooterSpeed :: Float
@@ -21,23 +20,26 @@ laserbeamSpeed :: Float
 laserbeamSpeed = 10 -- is dit nodig als het een laser die aanstaat?
 
 
-
+xmargin :: Float
+ymargin :: Float
+xmargin = 400
+ymargin = 200
 
 -- definineer het bewegings pattroon van de enemies hier
 -- en spawnrate
 -- en de RoF
 swarmRoF :: Float
 turretRoF :: Float
-wormRoF :: Float
+bruteRoF :: Float
 swarmSize :: Float
 turretSize :: Float
-wormSize :: Float
+bruteSize :: Float
 swarmRoF = 3
 turretRoF = 10
-wormRoF = 10
+bruteRoF = 10
 swarmSize = 32
 turretSize = 50
-wormSize = 50
+bruteSize = 50
 cloudSize :: Float
 cloudSize = 50
 mountainSize :: Float
