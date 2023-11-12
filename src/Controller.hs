@@ -48,7 +48,7 @@ step :: Float -> GameState -> IO GameState
 step secs gstate
   | status gstate == StartScreen = return gstate {infoToShow = ShowAString "START MENU"} -- dit moet in de view gebeuren toch? nergens anders
   | status gstate == Pause = return gstate {infoToShow = ShowAString "PAUSE"}
-  | status gstate == GameOver = return gstate {infoToShow = ShowAString "GAME OVER"}
+  | status gstate == GameOver = return gstate --{infoToShow = ShowAString "GAME OVER"}
   | otherwise =
   do
     -- spawn new enemies
