@@ -4,6 +4,7 @@ This is a variety on the game Shoot-em-Up where you have to kill swarms of alien
 ## Get It To Run
 To get our game to run, please follow the following steps:
 1. Use the command `cabal build` in the directory directly containing the `.cabal` file.
+3. If there is not already a folder called "saveFiles" in the same directory as in step 1, make it, there does not need to be anything in it.
 2. Use the command `cabal run` in the same directory as in step 1.
 
 # Controls
