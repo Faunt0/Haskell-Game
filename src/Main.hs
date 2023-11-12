@@ -25,6 +25,7 @@ main = do
 bitmaploadin :: IO (Map String Picture)   --load in all bitmaps from bitmap folder, zip them with name and turn it into a map for easyu use in view
 bitmaploadin = do  
     s <- loadBMP "bitmaps/tiny_ship.bmp" 
+    failed <- loadBMP "bitmaps/Mission failed.bmp"
     pea <- loadBMP "bitmaps/pea.bmp"
     swarm <- loadBMP "bitmaps/swarm.bmp"
     worm <- loadBMP "bitmaps/worm.bmp"
@@ -36,5 +37,5 @@ bitmaploadin = do
                                "bitmaps/splosieframes/splosieframe6.bmp",
                                "bitmaps/splosieframes/splosieframe7.bmp"]
     let splosions2 = zip ["frame1","frame2","frame3","frame4","frame5","frame6","frame7"] splosions 
-    return (Data.Map.fromList ([("ship",s),("pea",pea),("swarm", swarm),("worm", worm)]++splosions2))
+    return (Data.Map.fromList ([("ship",s),("pea",pea),("swarm", swarm),("worm", worm),("failed",failed)]++splosions2))
               
