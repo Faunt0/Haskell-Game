@@ -16,6 +16,13 @@ view p gstate
   | status gstate == GameOver = return (pics p gstate)
   -- does not need an otherwise since we've exhausted all cases of status
 
+startScreenPic :: IO Picture
+startScreenPic = do 
+  files <- getDirectoryContents "saveFiles/"
+  let firstFile = head files
+  let filePic = [Translate (-200) (-140) (scale 0.5 0.5 (color green (text firstFile)))]
+  let p = [Translate (-200) (200) (color green (text "START MENU")), Translate (-200) (0) (color green (text "SAVE FILES:"))]
+  return (Pictures (p ++ filePic))
 
 pics :: Map String Picture -> GameState -> Picture
 pics picturemap gstate = 
@@ -33,13 +40,6 @@ pics picturemap gstate =
     bts = bullets (player gstate)
     playerBullets = bullets (player gstate)
 
-startScreenPic :: IO Picture
-startScreenPic = do 
-  files <- getDirectoryContents "saveFiles/"
-  let firstFile = head files
-  let filePic = [Translate (-200) (-140) (scale 0.5 0.5 (color green (text firstFile)))]
-  let p = [Translate (-200) (200) (color green (text "START MENU")), Translate (-200) (0) (color green (text "SAVE FILES:"))]
-  return (Pictures (p ++ filePic))
 
 
 
