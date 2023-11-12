@@ -4,7 +4,7 @@ module Offscreen where
 import Model
 import GameMechanics
 
--- may want to add a margin so the enemy does not immediately despawn the second it hits the edge of the screen
+-- | Remove for a list of entities those that are out of our bounds
 entityOffscreen :: [Entity] -> (Int, Int) -> [Entity]
 entityOffscreen [] _ = []
 entityOffscreen (e:bts) (x, y)
