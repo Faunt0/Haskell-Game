@@ -4,7 +4,6 @@ fps :: Int
 fps = 60 
 
 
-
 xmargin :: Float
 ymargin :: Float
 xmargin = 400

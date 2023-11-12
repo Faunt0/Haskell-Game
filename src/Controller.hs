@@ -10,34 +10,10 @@ import Graphics.Gloss.Interface.Environment
 import System.Random
 import Data.Maybe
 import Data.Set as S hiding (map, filter)
--- import System.Exit (exitSuccess)
 import Offscreen
 import GameMechanics
-import GHC.Base (undefined) -- unnecessary
 import System.Directory (getDirectoryContents)
 
-
--- TODOS
--- achtergrond elementen
--- comments
--- pas gamemechanics aan
--- tweede gamedesign doc aanmaken
--- save file laden
--- startscherm maken -- bitmaps
--- turret bitmap zoeken?
--- code opschonen
--- tutorial schermpje
-
--- maybe make more packages to have a cleaner file
--- Misschien een sniper maken of burst in meerdere richtingen
--- boosts/health maken
--- artwork
--- background elements
--- werken met ammo en reload systemen zodat je niet gewoon je knoppen kunt blijven spammen?
--- iets met dat je een moederschip moet beschermen wat damage krijgt van collissions met enemies
--- enemies die stil staan op gegeven momenten en gewoon schieten
--- een soort backup players die achter de Player schieten.
--- dodge roll met i-frames
 
 
 -- | Handle one iteration of the game
