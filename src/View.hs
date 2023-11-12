@@ -116,7 +116,7 @@ viewScore gstate = color red (text (show (score gstate)))
 viewPure :: GameState -> Picture
 viewPure gstate = case infoToShow gstate of
   ShowNothing   -> blank
-  ShowANumber n -> color green (text (show n))
+  ShowANumber n -> blank
   ShowAChar   c -> color green (text [c])
   ShowAString s -> color green (text s)
 
