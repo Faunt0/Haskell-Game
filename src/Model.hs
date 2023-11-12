@@ -5,17 +5,17 @@
 
 module Model where
 -- import qualified Data.Set as S (Set, insert, delete, empty)
-import qualified Data.Set as S hiding (map, filter)
+-- import qualified Data.Set as S hiding (map, filter)
 import qualified Data.ByteString.Lazy as B (readFile, writeFile)
 import GHC.Generics
-import Data.Aeson
+import Data.Aeson hiding (keys)
 import GameMechanics
 
 -- moet misschien nog buttons eraan toevoegen
 data GameState = GameState {
                    status :: Status,
                    infoToShow  :: InfoToShow,
-                   keys :: S.Set Char,
+                   keys :: String,
                    timer :: [TimerFreq], -- moet ik dit wel meegeven, kan ik dit niet beter gewoon aflezen? a list of timers to spawn the enemies at certain rates
                    player :: Entity,
                    enemies :: [Entity],
@@ -25,7 +25,7 @@ data GameState = GameState {
 
 -- let op dat je hier dingen globaal definieert
 initialState :: GameState
-initialState = GameState Game ShowNothing S.empty spawnRate initialPlayer [] 0 0
+initialState = GameState StartScreen ShowNothing "" spawnRate initialPlayer [] 0 0
 initialPlayer :: Entity
 initialPlayer = E Player 100 ((Pt 0 0), 10) Peashooter 50 (0, 0) (0, 0.5) []
 spawnRate :: [TimerFreq] -- kan niet in de enemy zelf omdat die niet nieuwe enimies kan spawnen
@@ -93,7 +93,11 @@ writeGameState :: FilePath -> GameState -> IO () -- haal de filenamen
 writeGameState filePath gameState = do
   let json = encode gameState
   B.writeFile filePath json
+
+-- readGameState :: FilePath -> IO (Either String GameState)
+-- readGameState filePath = eitherDecodeFileStrict filePath
 readGameState :: FilePath -> IO (Maybe GameState)
-readGameState filePath = do
-  fileContents <- B.readFile filePath
-  return (decode fileContents)
+readGameState filePath = decodeFileStrict filePath
+  -- do
+  -- fileContents <- B.readFile filePath
+  -- return (decode fileContents)

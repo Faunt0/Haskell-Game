@@ -6,16 +6,19 @@ import Graphics.Gloss
 import Model
 import Controller
 import GameMechanics
+import System.Directory (getDirectoryContents)
 
 view :: Map String Picture -> GameState -> IO Picture
-view p gstate= return (pics p gstate)
+view p gstate
+  | status gstate == StartScreen = startScreenPic
+  | status gstate == Game = return (pics p gstate)
+  | status gstate == Pause = return (pics p gstate)
+  | status gstate == GameOver = return (pics p gstate)
+  -- does not need an otherwise since we've exhausted all cases of status
 
 
 pics :: Map String Picture -> GameState -> Picture
-pics picturemap gstate
-  | status gstate == StartScreen = Translate (-200) (-50) (color green (text "Start!"))
-  -- | status gstate == GameOver = Translate (-200) (-50) (color green (text "Start!"))
-  | otherwise =
+pics picturemap gstate = 
   Pictures ([
     Translate x y (picturemap ! "ship") -- Player
       --Translate x y (color green (Circle s)) -- Player
@@ -27,12 +30,21 @@ pics picturemap gstate
     )
   where
     (Pt x y, s) = hitbox (player gstate)
-    bts = bullets (player gstate) 
+    bts = bullets (player gstate)
     playerBullets = bullets (player gstate)
 
+startScreenPic :: IO Picture
+startScreenPic = do 
+  files <- getDirectoryContents "saveFiles/"
+  let firstFile = head files
+  let filePic = [Translate (-200) (-140) (scale 0.5 0.5 (color green (text firstFile)))]
+  let p = [Translate (-200) (200) (color green (text "START MENU")), Translate (-200) (0) (color green (text "SAVE FILES:"))]
+  return (Pictures (p ++ filePic))
 
 
-entityPics :: [Entity]-> Map String Picture-> [Picture]
+
+
+entityPics :: [Entity] -> Map String Picture -> [Picture]
 entityPics [] _= []
 entityPics (entity:es) picturemap= Translate x y pic : entityPics es picturemap
     where 

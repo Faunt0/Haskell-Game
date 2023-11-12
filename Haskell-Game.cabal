@@ -14,7 +14,8 @@ executable Haskell-Game
                        random,
                        containers,
                        aeson,
-                       bytestring
+                       bytestring,
+                       directory
   hs-source-dirs:      src
   other-modules:       Controller
                      , Model

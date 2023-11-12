@@ -13,6 +13,8 @@ import Data.Set as S hiding (map, filter)
 -- import System.Exit (exitSuccess)
 import Offscreen
 import GameMechanics
+import GHC.Base (undefined) -- unnecessary
+import System.Directory (getDirectoryContents)
 
 
 -- TODOS
@@ -44,7 +46,7 @@ import GameMechanics
 -- | Spawn enemies here based on a frequency which is correlated to the score of the player
 step :: Float -> GameState -> IO GameState
 step secs gstate
-  | status gstate == StartScreen = return gstate {infoToShow = ShowAString "START MENU"}
+  | status gstate == StartScreen = return gstate {infoToShow = ShowAString "START MENU"} -- dit moet in de view gebeuren toch? nergens anders
   | status gstate == Pause = return gstate {infoToShow = ShowAString "PAUSE"}
   | status gstate == GameOver = return gstate {infoToShow = ShowAString "GAME OVER"}
   | otherwise =
@@ -67,7 +69,7 @@ step secs gstate
 
     -- check if any bullet hits an enemy and moves the bullet
     -- make a central update player and central update entities function for as far as it goes
-    let movedPlayer = movementHandler (S.toList (keys gstate)) screenSize (player gstate) -- move the player within the boundaries
+    let movedPlayer = movementHandler (keys gstate) screenSize (player gstate) -- move the player within the boundaries
 
 
     let movedBullets = map moveEntity (bullets movedPlayer)  -- move the bullets of the player forward
@@ -105,16 +107,16 @@ step secs gstate
     , score = updatedScore })
 
 
--- kan dit met een foldr
+-- eigelijk hetzelfde als concat, vervang dit
 flatten :: [[a]] -> [a]
 flatten [] = []
 flatten [a] = a
 flatten (h:t) = h ++ flatten t
 
 -- laser dynamics?
-bulletHandler :: Set Char -> Float -> Player -> ((Time, Freq), [Bullet])
-bulletHandler set secs p
-    | S.member '.' set && t >= f = ((0, f), [getBullet we (Pt x y)])
+bulletHandler :: String -> Float -> Player -> ((Time, Freq), [Bullet])
+bulletHandler keys secs p
+    | charMember '.' keys && t >= f = ((0, f), [getBullet we (Pt x y)])
     | otherwise = ((t + secs, f), [])
   where
     (Pt x y) = fst (hitbox p)
@@ -159,25 +161,7 @@ splitAliveDead es = (alive, dead)
       dead = filter (\e -> health e <= 0) es
       alive = filter (\e -> health e > 0) es
 
--- is this possible?
--- removeDead es = [E Explosion 5 (fst (hitbox e), 20) None 5 (0, const 0) (0, -1) [] | e <- es, entityType e `elem` [Rocket] && health e < 0] -- spawn explosions if certain entities die
 
--- removeDead [] = []
--- removeDead (e:es) -- = necro ++ removeDead es
---     -- | health e <= 0 && entityType e `elem` [Rocket] = necro : removeDead es
---     | health e <= 0 = necro ++ removeDead es
---     | otherwise = e : removeDead es
---     where
---       (Pt x y) = fst (hitbox e)
---       -- necro = [E Explosion 5 ((Pt x y), 20) None 5 (4, const 4) (0, -1) [] | entityType e `elem` [Rocket] && health e < 0]
---       -- necro = E Explosion 5 ((Pt x y), 20) None 5 (0, const 0) (0, -1) []
---       necro = if entityType e `elem` [Rocket] && health e <= 0
---         then [E Explosion 5 ((Pt x y), 20) None 5 (0, const 0) (0, -1) []]
---         else []
-
-
-
--- beetje randomizen
 -- | the enemies fire their bullets
 enemyFire :: Player -> Float -> Entity -> (Entity, [Bullet])
 enemyFire player secs e
@@ -190,7 +174,7 @@ enemyFire player secs e
     xdif = xp - xe
     ydif = yp - ye
     c = sqrt (xdif ^ 2 + ydif^2)
-    d@(dx, dy) = (-xdif * 4 / c, -ydif * 4 / c)
+    d@(dx, dy) = (-xdif * 4 / c,-ydif * 4 / c)
 
     b = case entityType e of
         Swarm -> [E Pea 1 (ePos, 10) None 5 d (0, -1) []]
@@ -265,7 +249,7 @@ movementHandler (c:chars) s@(xScreen, yScreen) p = movementHandler chars s newPl
       'a' -> p {hitbox = (Pt (max (x - 8) (-fromIntegral (xScreen `div` 2))) y, snd (hitbox p))}
       's' -> p {hitbox = (Pt x (max (y - 8) (-fromIntegral (yScreen `div` 2))), snd (hitbox p))}
       'd' -> p {hitbox = (Pt (min (x + 8) (fromIntegral (xScreen `div` 2))) y, snd (hitbox p))}
-      _ -> p -- if it gets a key it doesnt understand ignore it (redundant if well implemented)
+      _ -> p -- if it gets a key it doesnt understand ignore it
 
 
 
@@ -281,7 +265,7 @@ hitboxOverlap ((Pt x1 y1), s1) ((Pt x2 y2), s2) =
 getBullet :: Weapon -> Pos -> Bullet
 getBullet Peashooter p = E Pea 1 (p, 5) None 5 (-8, 0) (0, -1) []
 getBullet Launcher p = E Rocket 1 (p, 10) None 5 (-8, 0) (0, -1) []
-getBullet Laser p = E Laserbeam 1 (p, 10) None 5 (-8, 0) (0, -1) []       -- alter the way this works, meaning also having to alter bulletmovements
+getBullet Laser p = E Laserbeam 1 (p, 10) None 5 (-8, 0) (0, -1) []   
 
 
 switchWeapon :: Weapon -> Weapon
@@ -292,21 +276,39 @@ switchWeapon Laser = Peashooter
 
 -- | Handle user input
 input :: Event -> GameState -> IO GameState
-input e gstate = inputKey e gstate
+input e gstate
+  | isEsc = error "Game Exited"
+  | status gstate == StartScreen = inputKeyStart e gstate
+  | status gstate == Game = inputKeyGame e gstate
+  | status gstate == Pause = inputKeyPause e gstate
+  | status gstate == GameOver = inputKeyGameOver e gstate
+  | otherwise = return gstate
+  where
+    (EventKey k s m p) = e
+    isEsc = (EventKey (SpecialKey KeyEsc) s m p) == e
+
+inputKeyStart :: Event -> GameState -> IO GameState
+inputKeyStart (EventKey (SpecialKey KeyEnter) Down _ _) gstate = return initialState {status = Game}
+inputKeyStart (EventKey (Char '1') Down _ _) gstate =
+  do
+    files <- getDirectoryContents "saveFiles/"
+    let firstFile = head files
+    fileGstate <- readGameState ("saveFiles/" ++ firstFile)
+    let g = fromJust fileGstate
+    return g
+inputKeyStart e gstate = return gstate
+
 
 -- | Handle movements which can be held
-inputKey :: Event -> GameState -> IO GameState
-inputKey (EventKey (Char c) Down _ _) gstate
-  | c == 'w' || c=='a' || c=='s' || c=='d' = return gstate {keys = S.insert c (keys gstate)}
-  -- | otherwise = gstate
-inputKey (EventKey (Char c) Up _ _) gstate = return gstate {keys = S.delete c (keys gstate)}
-
+inputKeyGame :: Event -> GameState -> IO GameState
+inputKeyGame (EventKey (Char c) Down _ _) gstate | c == 'w' || c=='a' || c=='s' || c=='d' = return gstate {keys = insertChar c (keys gstate)}
+inputKeyGame (EventKey (Char c) Up _ _) gstate = return gstate {keys = deleteChar c (keys gstate)}
+inputKeyGame (EventKey (Char 'p') Down _ _) gstate = return gstate {status = Pause}
 -- | Shoot bullets!
-inputKey (EventKey (SpecialKey KeySpace) Down _ _) gstate = return gstate { keys = S.insert '.' (keys gstate)}
-inputKey (EventKey (SpecialKey KeySpace) Up _ _) gstate = return gstate { keys = S.delete '.' (keys gstate)}
-
+inputKeyGame (EventKey (SpecialKey KeySpace) Down _ _) gstate = return gstate { keys = insertChar '.' (keys gstate)}
+inputKeyGame (EventKey (SpecialKey KeySpace) Up _ _) gstate = return gstate { keys = deleteChar '.' (keys gstate)}
 -- | Switch weapon when possible
-inputKey (EventKey (SpecialKey KeyTab) Down _ _) gstate
+inputKeyGame (EventKey (SpecialKey KeyTab) Down _ _) gstate
   = return gstate { infoToShow = ShowAString "SW", player = (player gstate) {weapon = newWe, rate = (0, newF)} }
     where
       (E et health hb we dmg dir (t, f) b) = player gstate
@@ -315,18 +317,31 @@ inputKey (EventKey (SpecialKey KeyTab) Down _ _) gstate
         Peashooter -> 0.5
         Launcher -> 1
         Laser -> 0.1
+inputKeyGame e gstate = return gstate
 
-inputKey (EventKey (Char 'p') Down _ _) gstate = if status gstate == Pause then return gstate {status = Game} else return gstate {status = Pause}
-inputKey (EventKey (Char 'r') _ _ _) gstate = return initialState -- restart, this should only happen when the status is gameover, Maybe also a clickable button like the save
+
+inputKeyPause (EventKey (Char 'p') Down _ _) gstate = return gstate {status = Game}
 -- als de muis binnen het vierkant van de "save" knop geklikt word
 -- inputKey (EventKey (MouseButton LeftButton) Down _ (x, y)) gstate = 
 --     if status gstate == Pause && hitboxOverlap (Pt x y, 1) (Pt (-200) (-100), 50)
-inputKey (EventKey (Char 'l') Down _ _) gstate = 
+inputKeyPause (EventKey (Char 's') Down _ _) gstate =
     if status gstate == Pause
-    then do 
-      writeGameState "saveFiles/save1.json" gstate
+    then do
+      writeGameState "saveFiles/save1.json" (gstate {keys = ""})
       putStrLn "SAVING YOUR GAME MAN"
       return gstate {infoToShow = ShowAString "SAVING"}
     else return gstate
-inputKey (EventKey (SpecialKey KeyEsc) _ _ _) gstate = error "Game exited"
-inputKey _ gstate = return gstate -- Otherwise keep the same
+inputKeyPause e gstate = return gstate
+
+inputKeyGameOver (EventKey (Char 'r') _ _ _) gstate = return initialState
+inputKeyGameOver e gstate = return gstate
+
+-- to replace using set
+insertChar :: Char -> String -> String
+insertChar c s 
+  | c `notElem` s = c : s
+  | otherwise = s
+deleteChar :: Char -> String -> String
+deleteChar char s = filter (char /=) s
+charMember :: Char -> String -> Bool
+charMember c s = c `elem` s
