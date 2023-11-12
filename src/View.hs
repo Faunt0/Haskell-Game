@@ -29,14 +29,13 @@ startScreenPic = do
 
 pics :: Map String Picture -> GameState -> IO Picture --using a gamestate and a map of all pictures, go through all entities and return the picture
 pics picturemap gstate = do 
-  lives <- displayLives (player gstate) picturemap
+  lives <- displayStats gstate picturemap
   return (Pictures (
         entityrendermoon (background gstate) picturemap ++
         entityrendermountain (background gstate) picturemap ++
         entityrendercloud (background gstate) picturemap++
         [Translate x y (picturemap ! "ship") -- Player
-        , Translate 30 30 (viewPure gstate) -- info to show
-        , Translate 0 400 (scale 0.5 0.5 (viewScore gstate))] -- score
+        , Translate 30 30 (viewPure gstate)] -- info to show -- score
         ++ entityPics bts picturemap -- player bullets
         ++ entityPics (enemies gstate) picturemap -- render enemies
         ++ entityPics (flatten (Prelude.map bullets (enemies gstate))) picturemap++lives -- enemy bullets
@@ -99,15 +98,15 @@ explosionstate health picturemap| health >= 21*(1/fromIntegral fps) = picturemap
                                 | otherwise = picturemap ! "frame7"
 
 
-displayLives :: Player-> Map String Picture -> IO [Picture] --display a little plane in the top right corresponding to lives left
-displayLives playa picturemap= do 
+displayStats :: GameState-> Map String Picture -> IO [Picture] --display a little plane in the top right corresponding to lives left
+displayStats gstate picturemap= do 
                sz <- getScreenSize 
                let sz2 = (fromIntegral (fst sz ) ::Float, fromIntegral (snd sz) ::Float)
                let margin = snd sz2 *0.05 
                let szx = (-0.5) * fst sz2
                let szy = 0.5 * snd sz2
-               let healthBar = [translate ( szx + (margin * i)) ( szy -  30) (picturemap ! "ship") | i <- [1..health playa]]
-               if health playa > 0 then return healthBar else return [translate 0 0 (picturemap ! "failed")]
+               let healthBar = translate (szx+ margin) (szy-margin*4)(color red (text (show (score gstate)))):[translate ( szx + (margin * i)) ( szy -  30) (picturemap ! "ship") | i <- [1..health (player gstate)]]
+               if health (player gstate) > 0 then return healthBar else return [translate 0 0 (picturemap ! "failed")]
              
 
 
