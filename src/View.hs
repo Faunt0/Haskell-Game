@@ -58,7 +58,7 @@ entityPics (entity:es) picturemap= Translate x y pic : entityPics es picturemap
       pic = case entityType entity of
             -- enemies
             Swarm -> picturemap ! "swarm"
-            Turret -> color blue (Polygon [(0, 0), (s, 0), (s, s), (0, s)])
+            Turret -> picturemap ! "turret"
             Worm -> scale 1.5 1.5 (picturemap ! "worm")
             Boss -> color red (Polygon [(0, 0), (s, 0), (s, s), (0, s)])
             Explosion -> explosionstate (health entity) picturemap
