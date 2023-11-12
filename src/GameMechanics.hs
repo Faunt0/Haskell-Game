@@ -25,7 +25,6 @@ laserbeamSpeed = 10 -- is dit nodig als het een laser die aanstaat?
 
 -- definineer het bewegings pattroon van de enemies hier
 -- en spawnrate
--- en begin levens
 -- en de RoF
 swarmRoF :: Float
 turretRoF :: Float
@@ -39,7 +38,8 @@ wormRoF = 10
 swarmSize = 32
 turretSize = 50
 wormSize = 50
-
+cloudSize = 50
+mountainSize = 50
 
 f :: Float -> Float
 f x = 3 * sin (1/(10 * 2*pi) * x)

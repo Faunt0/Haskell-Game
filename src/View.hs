@@ -86,24 +86,6 @@ displayLives playa picturemap= do
                let szy = 0.5 * snd sz2
                let healthBar = [translate ( szx + (margin * i)) ( szy -  30) (picturemap ! "ship") | i <- [1..health playa]]
                if health playa > 0 then return healthBar else return [translate 0 0 (picturemap ! "failed")]
-              --  return [translate ( szx + (margin * i)) ( szy -  30) (picturemap ! "ship") | i <- [1..health playa]]
-              --  case health playa of 
-              --   5 -> return  [translate ( szx + margin) ( szy -  30) (picturemap ! "ship"), 
-              --                translate ( szx + (margin * 2)) ( szy -  30) (picturemap ! "ship"),
-              --                translate ( szx + (margin * 3)) ( szy -  30) (picturemap ! "ship"),
-              --                translate ( szx + (margin * 4)) ( szy -  30) (picturemap ! "ship"),
-              --                translate ( szx + (margin * 5)) ( szy -  30) (picturemap ! "ship")]
-              --   4 -> return  [translate ( szx + margin) ( szy -  30) (picturemap ! "ship"), 
-              --                translate ( szx + (margin * 2)) ( szy -  30) (picturemap ! "ship"),
-              --                translate ( szx + (margin * 3)) ( szy -  30) (picturemap ! "ship"),
-              --                translate ( szx + (margin * 4)) ( szy -  30) (picturemap ! "ship")]
-              --   3 -> return  [translate ( szx + margin) ( szy -  30) (picturemap ! "ship"), 
-              --                translate ( szx + (margin * 2)) ( szy -  30) (picturemap ! "ship"),
-              --                translate ( szx + (margin * 3)) ( szy -  30) (picturemap ! "ship")]
-              --   2 -> return  [translate ( szx + margin) ( szy -  30) (picturemap ! "ship"), 
-              --                translate ( szx + (margin * 2)) ( szy -  30) (picturemap ! "ship")]
-              --   1 -> return  [translate ( szx + margin) ( szy -  30) (picturemap ! "ship")]
-              --   0 -> return  [translate 0 0 (picturemap ! "failed")]
              
 
 

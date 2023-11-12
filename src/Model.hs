@@ -19,18 +19,19 @@ data GameState = GameState {
                    timer :: [TimerFreq], -- moet ik dit wel meegeven, kan ik dit niet beter gewoon aflezen? a list of timers to spawn the enemies at certain rates
                    player :: Entity,
                    enemies :: [Entity],
+                   background :: [Entity],
                    score :: Score,
                    elapsedTime :: Float -- heb het eigenlijk niet nodig
                  } deriving (Generic, Show)
 
 -- let op dat je hier dingen globaal definieert
 initialState :: GameState
-initialState = GameState StartScreen ShowNothing "" spawnRate initialPlayer [] 0 0
+initialState = GameState StartScreen ShowNothing "" spawnRate initialPlayer [] [] 0 0
 initialPlayer :: Entity
 --initialPlayer = E Player 100 ((Pt 0 0), 10) Peashooter 50 (0, 0) (0, 0.5) []
 initialPlayer = E Player 5 (Pt 0 0, 10) Peashooter 50 (0, 0) (0, 0.5) []
 spawnRate :: [TimerFreq] -- kan niet in de enemy zelf omdat die niet nieuwe enimies kan spawnen
-spawnRate = [T "Swarm" 0 0.5, T "Worm" 0 5, T "Turret" 0 3] -- spawnrates of the different enemies, this can be adjusted based on the score.
+spawnRate = [T Swarm 0 0.5, T Worm 0 5, T Turret 0 3, T Cloud 0 10] -- spawnrates of the different enemies, this can be adjusted based on the score.
 
 
 
@@ -67,10 +68,12 @@ data Entity = E {
       bullets :: [Bullet] -- dit is niet nodig, als ik dit weg haal moeten we nadenken over of je kogels uit de lucht wil kunnen schieten
 } deriving (Generic, Show)
 
-data EntityTypes = Player | Worm | Swarm | Turret | Boss | Pea | Rocket | Laserbeam | Grenade | Explosion deriving (Generic, Show, Eq)
+data EntityTypes = 
+  Player | Worm | Swarm | Turret | Boss | Pea | Rocket | Laserbeam | Explosion 
+  | Cloud | Mountain | Planet  -- background elements
+  deriving (Generic, Show, Eq)
 data Weapon = None | Peashooter | Launcher | Laser deriving (Generic, Show)
 data Status = StartScreen | Game | Pause | GameOver deriving (Generic, Show, Eq)
-
 
 instance ToJSON GameState
 instance ToJSON Entity
