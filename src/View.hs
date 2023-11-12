@@ -27,11 +27,14 @@ startScreenPic = do
   let p = [Translate (-200) (200) (color green (text "START MENU")), Translate (-200) (0) (color green (text "SAVE FILES:"))]
   return (Pictures (p ++ filePic))
 
-pics :: Map String Picture -> GameState -> IO Picture
+pics :: Map String Picture -> GameState -> IO Picture --using a gamestate and a map of all pictures, go through all entities and return the picture
 pics picturemap gstate = do 
   lives <- displayLives (player gstate) picturemap
-  return (Pictures ([
-        Translate x y (picturemap ! "ship") -- Player
+  return (Pictures (
+        entityrendermoon (background gstate)++
+        entityrendermountain (background gstate)++
+        entityrendercloud (background gstate)++
+        [Translate x y (picturemap ! "ship") -- Player
         , Translate 30 30 (viewPure gstate) -- info to show
         , Translate 0 400 (scale 0.5 0.5 (viewScore gstate))] -- score
         ++ entityPics bts picturemap -- player bullets
@@ -66,9 +69,28 @@ entityPics (entity:es) picturemap= Translate x y pic : entityPics es picturemap
             Pea -> scale 0.1 0.1 (picturemap ! "pea")
             Rocket -> color yellow (Circle s)
             Laserbeam -> color cyan (Line [(0, 0), (s, 0)])
+            
+entityrendercloud :: [Entity] -> Map String Picture -> [Picture] --to simulate parralax we had to make sure the background entities were rendered in the right order
+entityrendercloud [] _ = []
+entityrendercloud (entity:xs) picturemap | entityType entity == Cloud= Translate x y (picturemap ! "cloud"):xs
+            where 
+            (Pt x y) = fst (hitbox entity) 
+
+entityrendermountain :: [Entity] -> Map String Picture -> [Picture]
+entityrendermountain [] _ = []
+entityrendermountain (entity:xs) picturemap | entityType entity == Mountain= Translate x y (picturemap ! "mountain"):xs
+            where 
+            (Pt x y) = fst (hitbox entity) 
+
+entityrendermoon :: [Entity] -> Map String Picture -> [Picture]
+entityrendermoon [] _ = []
+entityrendermoon (entity:xs) picturemap | entityType entity == Moon= Translate x y (picturemap ! "moon"):xs
+            where 
+            (Pt x y) = fst (hitbox entity) 
+            
       
 
-explosionstate :: Float -> Map String Picture -> Picture
+explosionstate :: Float -> Map String Picture -> Picture   --change frame of explosion based of explosions health
 explosionstate health picturemap| health >= 21*(1/fromIntegral fps) = picturemap ! "frame1"
                                 | health >= 18*(1/fromIntegral fps) = picturemap ! "frame2"
                                 | health >= 15*(1/fromIntegral fps) = picturemap ! "frame3"
@@ -78,7 +100,7 @@ explosionstate health picturemap| health >= 21*(1/fromIntegral fps) = picturemap
                                 | otherwise = picturemap ! "frame7"
 
 
-displayLives :: Player-> Map String Picture -> IO [Picture]
+displayLives :: Player-> Map String Picture -> IO [Picture] --display a little plane in the top right corresponding to lives left
 displayLives playa picturemap= do 
                sz <- getScreenSize 
                let sz2 = (fromIntegral (fst sz ) ::Float, fromIntegral (snd sz) ::Float)
@@ -90,7 +112,7 @@ displayLives playa picturemap= do
              
 
 
-viewScore :: GameState -> Picture
+viewScore :: GameState -> Picture 
 viewScore gstate = color red (text (show (score gstate)))
 
 viewPure :: GameState -> Picture
